@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Security Groups -->
+    <record id="group_guardian_user" model="res.groups">
+        <field name="name">Guardian User</field>
+        <field name="category_id" ref="base.module_category_sales_management"/>
+        <field name="comment">Basic access to guardian and kid management</field>
+    </record>
+
+    <record id="group_guardian_manager" model="res.groups">
+        <field name="name">Guardian Manager</field>
+        <field name="category_id" ref="base.module_category_sales_management"/>
+        <field name="implied_ids" eval="[(4, ref('group_guardian_user'))]"/>
+        <field name="comment">Full access to guardian and kid management including deletion rights</field>
+    </record>
+
+    <!-- Record Rules -->
+    
+    <!-- Guardian Rules -->
+    <record id="guardian_rule_user" model="ir.rule">
+        <field name="name">Guardian User Rule</field>
+        <field name="model_id" ref="model_guardian_guardian"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="guardian_rule_manager" model="ir.rule">
+        <field name="name">Guardian Manager Rule</field>
+        <field name="model_id" ref="model_guardian_guardian"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_manager'))]"/>
+    </record>
+
+    <!-- Kid Rules -->
+    <record id="kid_rule_user" model="ir.rule">
+        <field name="name">Kid User Rule</field>
+        <field name="model_id" ref="model_guardian_kid"/>
+        <field name="domain_force">[('guardian_ids.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="kid_rule_manager" model="ir.rule">
+        <field name="name">Kid Manager Rule</field>
+        <field name="model_id" ref="model_guardian_kid"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_manager'))]"/>
+    </record>
+
+    <!-- Relationship Rules -->
+    <record id="relationship_rule_user" model="ir.rule">
+        <field name="name">Relationship User Rule</field>
+        <field name="model_id" ref="model_guardian_kid_relationship"/>
+        <field name="domain_force">[('guardian_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="relationship_rule_manager" model="ir.rule">
+        <field name="name">Relationship Manager Rule</field>
+        <field name="model_id" ref="model_guardian_kid_relationship"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_guardian_manager'))]"/>
+    </record>
+
+</odoo>
