@@ -14,6 +14,7 @@
         'views/academy_skill_group_views.xml',
         'views/academy_player_views.xml',
         'views/res_partner_views.xml',
+    'views/res_users_views.xml',
         'views/player_elevation_wizard_views.xml',
         'views/academy_menu_views.xml',
     ],

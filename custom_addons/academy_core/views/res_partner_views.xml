@@ -11,5 +11,52 @@
                 </xpath>
             </field>
         </record>
+
+        <record id="view_partner_list_academy_guardian" model="ir.ui.view">
+            <field name="name">res.partner.list.academy.guardian</field>
+            <field name="model">res.partner</field>
+            <field name="arch" type="xml">
+                <list string="Guardians" create="1" delete="1">
+                    <field name="name"/>
+                    <field name="email"/>
+                    <field name="phone"/>
+                    <field name="mobile"/>
+                    <field name="academy_guardian_child_ids" widget="many2many_tags" optional="show"/>
+                    <field name="active"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_partner_search_academy_guardian" model="ir.ui.view">
+            <field name="name">res.partner.search.academy.guardian</field>
+            <field name="model">res.partner</field>
+            <field name="arch" type="xml">
+                <search string="Search Guardians">
+                    <field name="name"/>
+                    <field name="email"/>
+                    <field name="phone"/>
+                    <filter name="active" string="Active" domain="[('active', '=', True)]" help="Active guardians"/>
+                    <filter name="inactive" string="Archived" domain="[('active', '=', False)]" help="Archived guardians"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_academy_guardian" model="ir.actions.act_window">
+            <field name="name">Guardians</field>
+            <field name="res_model">res.partner</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="academy_core.view_partner_list_academy_guardian"/>
+            <field name="search_view_id" ref="academy_core.view_partner_search_academy_guardian"/>
+            <field name="domain">[("academy_is_guardian", "=", True)]</field>
+            <field name="context">{
+                "default_company_type": "person",
+                "default_is_company": False,
+                "default_academy_is_guardian": True,
+                "search_default_active": 1
+            }</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">Create guardian contacts and link them to players.</p>
+            </field>
+        </record>
     </data>
 </odoo>

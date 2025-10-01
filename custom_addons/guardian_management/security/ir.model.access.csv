@@ -1,7 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_guardian_manager,Guardian Manager,model_guardian_guardian,group_guardian_manager,1,1,1,1
-access_guardian_user,Guardian User,model_guardian_guardian,group_guardian_user,1,1,1,0
-access_kid_manager,Kid Manager,model_guardian_kid,group_guardian_manager,1,1,1,1
-access_kid_user,Kid User,model_guardian_kid,group_guardian_user,1,1,1,0
-access_relationship_manager,Relationship Manager,model_guardian_kid_relationship,group_guardian_manager,1,1,1,1
-access_relationship_user,Relationship User,model_guardian_kid_relationship,group_guardian_user,1,1,1,0

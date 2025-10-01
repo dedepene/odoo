@@ -57,7 +57,7 @@ class PlayerElevationWizard(models.TransientModel):
             'login': login,
             'email': email,
             'partner_id': partner.id,
-            'groups_id': [(6, 0, groups)],
+            'group_ids': [(6, 0, groups)],
         }
         user = self.env['res.users'].with_context(no_reset_password=not self.send_portal_welcome).create(user_vals)
 

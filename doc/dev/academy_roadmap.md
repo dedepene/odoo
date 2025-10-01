@@ -353,9 +353,10 @@ Wizard: select player → validate age/flag allow_elevation → create `res.user
 
 ## 14. Execution Checklist
 Core:
-- [ ] Scaffold `academy_core` (models, sequences, security groups)
-- [ ] Implement guardian & player constraints
-- [ ] Elevation wizard skeleton
+- [x] Scaffold `academy_core` (models, sequences, security groups)
+- [x] Implement guardian & player constraints
+- [x] Elevation wizard skeleton
+- [x] Expose Guardians & Coaches menus so site admins can list, create, edit, and archive those records alongside Players
 
 Schedule:
 - [ ] Session template model & cron

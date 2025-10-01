@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_users_tree_academy_coach" model="ir.ui.view">
+            <field name="name">res.users.tree.academy.coach</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <list string="Coaches" create="1" delete="1">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <field name="academy_coach_category" optional="show"/>
+                    <field name="academy_is_coach" widget="boolean_toggle"/>
+                    <field name="active"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_users_search_academy_coach" model="ir.ui.view">
+            <field name="name">res.users.search.academy.coach</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <search string="Search Coaches">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <filter name="active" string="Active" domain="[('active', '=', True)]" help="Active coaches"/>
+                    <filter name="inactive" string="Archived" domain="[('active', '=', False)]" help="Archived coaches"/>
+                    <filter name="category_head" string="Head" domain="[('academy_coach_category', '=', 'head')]"/>
+                    <filter name="category_senior" string="Senior" domain="[('academy_coach_category', '=', 'senior')]"/>
+                    <filter name="category_associate" string="Associate" domain="[('academy_coach_category', '=', 'associate')]"/>
+                    <filter name="category_visiting" string="Visiting" domain="[('academy_coach_category', '=', 'visiting')]"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_academy_coach" model="ir.actions.act_window">
+            <field name="name">Coaches</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="academy_core.view_users_tree_academy_coach"/>
+            <field name="search_view_id" ref="academy_core.view_users_search_academy_coach"/>
+            <field name="domain">[("academy_is_coach", "=", True)]</field>
+            <field name="context">{
+                'default_academy_is_coach': True,
+                'default_share': False,
+                'search_default_active': 1
+            }</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">Add internal users flagged as coaches and manage their categories.</p>
+            </field>
+        </record>
+
+        <record id="view_users_form_academy_coach" model="ir.ui.view">
+            <field name="name">res.users.form.academy.coach</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group[@name='other_preferences']" position="inside">
+                    <field name="academy_is_coach"/>
+                    <field name="academy_coach_category" modifiers="{'invisible': [('academy_is_coach', '=', False)]}"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

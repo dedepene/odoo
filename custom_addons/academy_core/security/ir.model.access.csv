@@ -4,3 +4,5 @@ academy_player_head_coach_access,academy.player.head.coach,model_academy_player,
 academy_player_coach_access,academy.player.coach,model_academy_player,academy_core.group_academy_coach,1,0,0,0
 academy_skill_group_site_admin_access,academy.skill.group.site.admin,model_academy_skill_group,academy_core.group_academy_site_admin,1,1,1,1
 academy_skill_group_head_coach_access,academy.skill.group.head.coach,model_academy_skill_group,academy_core.group_academy_head_coach,1,1,0,0
+academy_player_elevation_wizard_site_admin,academy.player.elevation.wizard.site.admin,model_academy_player_elevation_wizard,academy_core.group_academy_site_admin,1,1,1,1
+academy_player_elevation_wizard_head_coach,academy.player.elevation.wizard.head.coach,model_academy_player_elevation_wizard,academy_core.group_academy_head_coach,1,1,1,1
