@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <menuitem id="menu_academy_root" name="Academy" sequence="10" groups="academy_core.group_academy_site_admin,academy_core.group_academy_head_coach,academy_core.group_academy_coach"/>
+
+        <menuitem id="menu_academy_players" name="Players" parent="menu_academy_root" sequence="10"
+                  action="academy_core.action_academy_player"
+                  groups="academy_core.group_academy_site_admin,academy_core.group_academy_head_coach,academy_core.group_academy_coach"/>
+
+        <menuitem id="menu_academy_configuration" name="Configuration" parent="menu_academy_root" sequence="90"
+                  groups="academy_core.group_academy_site_admin,academy_core.group_academy_head_coach"/>
+
+        <menuitem id="menu_academy_skill_groups" name="Skill Groups" parent="menu_academy_configuration" sequence="10"
+                  action="academy_core.action_academy_skill_group"
+                  groups="academy_core.group_academy_site_admin,academy_core.group_academy_head_coach"/>
+    </data>
+</odoo>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_academy_player_elevation_wizard" model="ir.ui.view">
+            <field name="name">academy.player.elevation.wizard.form</field>
+            <field name="model">academy.player.elevation.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Elevate Player">
+                    <group>
+                        <field name="player_id" readonly="1"/>
+                        <field name="login" required="1"/>
+                        <field name="email" required="1"/>
+                        <field name="assign_guardian_groups"/>
+                        <field name="send_portal_welcome"/>
+                    </group>
+                    <footer>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                        <button name="action_confirm" string="Create Portal User" type="object" class="btn-primary"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_academy_player_list" model="ir.ui.view">
+            <field name="name">academy.player.list</field>
+            <field name="model">academy.player</field>
+            <field name="arch" type="xml">
+                <list string="Players" create="1" delete="1">
+                    <field name="reference"/>
+                    <field name="name"/>
+                    <field name="dob"/>
+                    <field name="age_years"/>
+                    <field name="skill_group_id"/>
+                    <field name="lead_coach_id"/>
+                    <field name="primary_guardian_id"/>
+                    <field name="active"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_academy_player_search" model="ir.ui.view">
+            <field name="name">academy.player.search</field>
+            <field name="model">academy.player</field>
+            <field name="arch" type="xml">
+                <search string="Search Players">
+                    <field name="name"/>
+                    <field name="reference"/>
+                    <field name="skill_group_id"/>
+                    <field name="lead_coach_id"/>
+                    <field name="guardian_ids"/>
+                    <filter name="active" string="Active" domain="[('active', '=', True)]" help="Active players"/>
+                    <filter name="inactive" string="Archived" domain="[('active', '=', False)]" help="Archived players"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="view_academy_player_form" model="ir.ui.view">
+            <field name="name">academy.player.form</field>
+            <field name="model">academy.player</field>
+            <field name="arch" type="xml">
+                <form string="Player">
+                    <header>
+                        <button name="action_open_elevation_wizard" string="Elevate to Portal" type="object"
+                                class="btn-primary" invisible="portal_user_id"/>
+                        <field name="portal_user_id" widget="badge" invisible="not portal_user_id"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="reference" readonly="1"/>
+                                <field name="name" required="1"/>
+                                <field name="dob" required="1"/>
+                                <field name="age_years" readonly="1"/>
+                                <field name="skill_group_id" required="1"/>
+                            </group>
+                            <group>
+                                <field name="lead_coach_id"/>
+                    <field name="guardian_ids"
+                        widget="many2many_tags"
+                        context="{'default_academy_is_guardian': True}"
+                        required="1"/>
+                    <field name="primary_guardian_id"
+                        context="{'default_academy_is_guardian': True}"
+                        required="1"/>
+                                <field name="elevation_allowed"/>
+                                <field name="active"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Contact Information">
+                                <group>
+                                    <group>
+                                        <field name="email"/>
+                                        <field name="phone"/>
+                                        <field name="mobile"/>
+                                    </group>
+                                    <group>
+                                        <field name="street"/>
+                                        <field name="street2"/>
+                                        <field name="city"/>
+                                        <field name="zip"/>
+                                        <field name="country_id"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Notes">
+                                <field name="notes"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_academy_player" model="ir.actions.act_window">
+            <field name="name">Players</field>
+            <field name="res_model">academy.player</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="academy_core.view_academy_player_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create and manage academy players, their guardians, and coach assignments.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>

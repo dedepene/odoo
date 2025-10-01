@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_partner_form_academy_guardian" model="ir.ui.view">
+            <field name="name">res.partner.form.academy.guardian</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group[2]/field[@name='website']" position="after">
+                    <field name="academy_is_guardian"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
