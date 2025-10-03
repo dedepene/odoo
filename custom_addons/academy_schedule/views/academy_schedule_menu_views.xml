@@ -33,6 +33,13 @@
               action="action_academy_session_template"
               sequence="20"/>
 
+    <!-- Suspensions -->
+    <menuitem id="menu_academy_season_suspension"
+              name="Suspensions"
+              parent="menu_academy_schedule_root"
+              action="action_academy_season_suspension"
+              sequence="25"/>
+
     <!-- Sessions -->
     <menuitem id="menu_academy_session_occurrence"
               name="Sessions"

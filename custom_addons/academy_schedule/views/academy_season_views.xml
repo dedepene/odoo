@@ -99,4 +99,81 @@
             </p>
         </field>
     </record>
+
+    <!-- Suspension List View -->
+    <record id="view_academy_season_suspension_tree" model="ir.ui.view">
+        <field name="name">academy.season.suspension.list</field>
+        <field name="model">academy.season.suspension</field>
+        <field name="arch" type="xml">
+            <list string="Season Suspensions" create="1" edit="1">
+                <field name="season_id"/>
+                <field name="start_date"/>
+                <field name="end_date"/>
+                <field name="apply_to_group" widget="boolean_toggle"/>
+                <field name="apply_to_individual" widget="boolean_toggle"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Suspension Form View -->
+    <record id="view_academy_season_suspension_form" model="ir.ui.view">
+        <field name="name">academy.season.suspension.form</field>
+        <field name="model">academy.season.suspension</field>
+        <field name="arch" type="xml">
+            <form string="Season Suspension">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="season_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="reason"/>
+                    </group>
+                    <group col="2">
+                        <field name="apply_to_group"/>
+                        <field name="apply_to_individual"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Suspension Search View -->
+    <record id="view_academy_season_suspension_search" model="ir.ui.view">
+        <field name="name">academy.season.suspension.search</field>
+        <field name="model">academy.season.suspension</field>
+        <field name="arch" type="xml">
+            <search string="Search Suspensions">
+                <field name="reason"/>
+                <field name="season_id"/>
+                <filter name="filter_active" string="Active" domain="[('active', '=', True)]" help="Show active suspensions"/>
+                <filter name="filter_inactive" string="Inactive" domain="[('active', '=', False)]"/>
+                <filter name="filter_group" string="Group Sessions" domain="[('apply_to_group', '=', True)]"/>
+                <filter name="filter_individual" string="Individual Sessions" domain="[('apply_to_individual', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Suspension Action -->
+    <record id="action_academy_season_suspension" model="ir.actions.act_window">
+        <field name="name">Suspensions</field>
+        <field name="res_model">academy.season.suspension</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_academy_season_suspension_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a suspension window
+            </p>
+            <p>
+                Pause sessions for maintenance, tournaments, or weather events.
+            </p>
+        </field>
+    </record>
 </odoo>

@@ -1,7 +1,13 @@
 """Session occurrence model for actual scheduled sessions."""
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
+
+
+if TYPE_CHECKING:  # pragma: no cover - typing helpers only
+    from .academy_season import AcademySeason, AcademySeasonSuspension
 
 
 class AcademySessionOccurrence(models.Model):
@@ -51,6 +57,25 @@ class AcademySessionOccurrence(models.Model):
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
     ], string='Status', default='planned', tracking=True)
+    state_before_suspension = fields.Selection([
+        ('planned', 'Planned'),
+        ('suspended', 'Suspended'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ], string='State Before Suspension', copy=False, readonly=True)
+    suspension_id = fields.Many2one(
+        'academy.season.suspension',
+        string='Suspension Window',
+        copy=False,
+        index=True,
+        readonly=True,
+    )
+    suspension_reason = fields.Char(
+        string='Suspension Reason',
+        related='suspension_id.reason',
+        readonly=True,
+        store=False,
+    )
     
     # Session characteristics
     is_individual = fields.Boolean(string='Individual Session', default=False,
@@ -72,6 +97,92 @@ class AcademySessionOccurrence(models.Model):
     
     notes = fields.Text(string='Notes')
     active = fields.Boolean(string='Active', default=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._sync_suspension_state()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if not self.env.context.get('skip_suspension_sync') and (
+            {'date', 'season_id', 'is_individual'} & set(vals.keys())
+            or not vals.keys() & {'state', 'suspension_id', 'state_before_suspension'}
+        ):
+            self._sync_suspension_state()
+        return res
+
+    # ------------------------------------------------------------------
+    # Suspension helpers
+    # ------------------------------------------------------------------
+    def _sync_suspension_state(self, future_only=True):
+        """Ensure occurrences align with any active suspension window."""
+        today = fields.Date.today()
+        for occurrence in self:
+            suspension = occurrence._find_applicable_suspension()
+            if suspension:
+                occurrence._suspend_with(suspension)
+            elif (
+                occurrence.state == 'suspended'
+                and occurrence.suspension_id
+                and occurrence.date
+                and (not future_only or occurrence.date >= today)
+            ):
+                occurrence._lift_suspension(future_only=future_only)
+
+    def _find_applicable_suspension(self):
+        """Return the active suspension window covering this occurrence, if any."""
+        self.ensure_one()
+        season: 'AcademySeason' = self.season_id  # type: ignore[assignment]
+        if not season or not self.date:
+            return self.env['academy.season.suspension']
+
+        suspensions = season.suspension_ids.filtered(
+            lambda s: s.active
+            and s.start_date <= self.date <= s.end_date
+            and (
+                (self.is_individual and s.apply_to_individual)
+                or (not self.is_individual and s.apply_to_group)
+            )
+        )
+        if not suspensions:
+            return self.env['academy.season.suspension']
+        return suspensions.sorted(lambda s: (s.start_date, s.id), reverse=True)[0]
+
+    def _suspend_with(self, suspension):
+        """Apply the given suspension window to the occurrences."""
+        for occurrence in self:
+            if occurrence.state in ('cancelled', 'completed'):
+                continue
+            if occurrence.suspension_id == suspension and occurrence.state == 'suspended':
+                continue
+
+            previous_state = (
+                occurrence.state_before_suspension
+                or (occurrence.state if occurrence.state != 'suspended' else 'planned')
+            )
+
+            super(AcademySessionOccurrence, occurrence.with_context(skip_suspension_sync=True)).write({
+                'state_before_suspension': previous_state,
+                'state': 'suspended',
+                'suspension_id': suspension.id,
+            })
+            occurrence.message_post(body=f'Session suspended: {suspension.reason}')  # type: ignore[attr-defined]
+
+    def _lift_suspension(self, future_only=True):
+        """Restore the occurrence to its state prior to suspension."""
+        today = fields.Date.today()
+        for occurrence in self:
+            if future_only and occurrence.date and occurrence.date < today:
+                continue
+            previous_state = occurrence.state_before_suspension or 'planned'
+            super(AcademySessionOccurrence, occurrence.with_context(skip_suspension_sync=True)).write({
+                'state': previous_state,
+                'state_before_suspension': False,
+                'suspension_id': False,
+            })
+            occurrence.message_post(body='Session reactivated - suspension lifted')  # type: ignore[attr-defined]
 
     @api.depends('skill_group_id', 'date', 'session_type', 'is_individual')
     def _compute_name(self):
@@ -178,8 +289,13 @@ class AcademySessionOccurrence(models.Model):
     def action_reactivate(self):
         """Reactivate a cancelled/suspended session."""
         for occurrence in self:
-            occurrence.write({'state': 'planned'})
+            occurrence.write({
+                'state': 'planned',
+                'state_before_suspension': False,
+                'suspension_id': False,
+            })
             occurrence.message_post(body='Session reactivated')
+        self._sync_suspension_state()
         return True
 
     def action_complete(self):

@@ -197,3 +197,75 @@ class AcademySeasonSuspension(models.Model):
             name = f"{suspension.reason} ({suspension.start_date} - {suspension.end_date})"
             result.append((suspension.id, name))
         return result
+
+    def _build_occurrence_domain(self, future_only=False):
+        """Build domain to find occurrences affected by this suspension window.
+        
+        Args:
+            future_only (bool): If True, only include occurrences from today onwards
+            
+        Returns:
+            list: Domain for searching academy.session.occurrence
+        """
+        self.ensure_one()
+        domain = [
+            ('season_id', '=', self.season_id.id),
+            ('date', '>=', self.start_date),
+            ('date', '<=', self.end_date),
+        ]
+        
+        if future_only:
+            today = fields.Date.today()
+            domain.append(('date', '>=', today))
+        
+        # Filter by session type based on suspension settings
+        if self.apply_to_group and not self.apply_to_individual:
+            domain.append(('is_individual', '=', False))
+        elif self.apply_to_individual and not self.apply_to_group:
+            domain.append(('is_individual', '=', True))
+        # If both are True, no additional filter needed (affects all)
+        
+        return domain
+
+    def apply_window(self, include_existing=True):
+        """Apply this suspension window to matching occurrences.
+        
+        Args:
+            include_existing (bool): If True, suspend existing planned occurrences
+        """
+        for suspension in self:
+            if not suspension.active:
+                continue
+                
+            if include_existing:
+                # Find and suspend existing occurrences
+                Occurrence = self.env['academy.session.occurrence']
+                domain = list(suspension._build_occurrence_domain(future_only=False))
+                # Only affect occurrences that can be suspended
+                domain.append(('state', 'in', ['planned', 'suspended']))
+                
+                occurrences = Occurrence.search(domain)
+                if occurrences:
+                    occurrences._suspend_with(suspension)
+                    
+    def _ensure_season_state(self):
+        """Ensure the season is in appropriate state for suspension."""
+        for suspension in self:
+            season = suspension.season_id
+            if not season:
+                continue
+            
+            # If season is in draft, activate it
+            if season.state == 'draft':
+                season.action_activate()
+                
+    def _lift_suspension(self):
+        """Lift this suspension and reactivate affected future occurrences."""
+        for suspension in self:
+            Occurrence = self.env['academy.session.occurrence']
+            domain = list(suspension._build_occurrence_domain(future_only=True))
+            domain.append(('suspension_id', '=', suspension.id))
+            
+            occurrences = Occurrence.search(domain)
+            if occurrences:
+                occurrences._lift_suspension(future_only=True)

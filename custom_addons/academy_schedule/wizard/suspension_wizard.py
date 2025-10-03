@@ -31,12 +31,22 @@ class SuspensionWizard(models.TransientModel):
             if wizard.end_date < wizard.start_date:
                 raise ValidationError('End date must be on or after start date!')
 
+    @api.constrains('apply_to_group', 'apply_to_individual')
+    def _check_scope(self):
+        for wizard in self:
+            if not wizard.apply_to_group and not wizard.apply_to_individual:
+                raise ValidationError('Select at least one session scope to suspend.')
+
     def action_suspend(self):
         """Create suspension window and update affected sessions."""
         self.ensure_one()
         
         # Create suspension record
-        suspension = self.env['academy.season.suspension'].create({
+        Suspension = self.env['academy.season.suspension'].with_context(
+            suspension_apply_existing=self.cancel_existing,
+            suspension_warn_empty=self.cancel_existing,
+        )
+        suspension = Suspension.create({
             'season_id': self.season_id.id,
             'start_date': self.start_date,
             'end_date': self.end_date,
@@ -45,46 +55,12 @@ class SuspensionWizard(models.TransientModel):
             'apply_to_individual': self.apply_to_individual,
         })
         
-        suspended_count = 0
-        
-        if self.cancel_existing:
-            # Find and suspend existing planned sessions in the window
-            domain = [
-                ('season_id', '=', self.season_id.id),
-                ('date', '>=', self.start_date),
-                ('date', '<=', self.end_date),
-                ('state', '=', 'planned'),
-            ]
-            
-            # Add session type filter
-            if self.apply_to_group and not self.apply_to_individual:
-                domain.append(('is_individual', '=', False))
-            elif self.apply_to_individual and not self.apply_to_group:
-                domain.append(('is_individual', '=', True))
-            
-            occurrences = self.env['academy.session.occurrence'].search(domain)
-            
-            for occurrence in occurrences:
-                occurrence.write({'state': 'suspended'})
-                occurrence.message_post(
-                    body=f'Session suspended: {self.reason}'
-                )
-                suspended_count += 1
-        
-        # Log to season
-        summary = (
-            f"Sessions suspended from {self.start_date} to {self.end_date}\n"
-            f"Reason: {self.reason}\n"
-            f"Affected sessions: {suspended_count}"
-        )
-        self.season_id.message_post(body=summary)
-        
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Success',
-                'message': f'Suspended {suspended_count} sessions',
+                'message': 'Suspension window recorded.',
                 'type': 'success',
                 'sticky': False,
             }
@@ -98,31 +74,15 @@ class SuspensionWizard(models.TransientModel):
             raise ValidationError('No suspension specified!')
         
         suspension = self.env['academy.season.suspension'].browse(suspension_id)
-        
-        # Reactivate future suspended sessions
-        today = fields.Date.today()
-        occurrences = self.env['academy.session.occurrence'].search([
-            ('season_id', '=', suspension.season_id.id),
-            ('date', '>=', max(suspension.start_date, today)),
-            ('date', '<=', suspension.end_date),
-            ('state', '=', 'suspended'),
-        ])
-        
-        reactivated_count = 0
-        for occurrence in occurrences:
-            occurrence.write({'state': 'planned'})
-            occurrence.message_post(body='Session reactivated - suspension removed')
-            reactivated_count += 1
-        
-        # Deactivate or delete suspension
         suspension.write({'active': False})
+        suspension._lift_suspension()  # type: ignore[attr-defined]
         
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Success',
-                'message': f'Reactivated {reactivated_count} sessions',
+                'message': 'Suspension removed.',
                 'type': 'success',
                 'sticky': False,
             }

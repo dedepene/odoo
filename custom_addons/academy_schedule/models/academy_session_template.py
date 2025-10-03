@@ -150,11 +150,6 @@ class AcademySessionTemplate(models.Model):
         Occurrence = self.env['academy.session.occurrence']
         created_count = 0
         
-        # Get suspension windows for this season
-        suspensions = self.season_id.suspension_ids.filtered(
-            lambda s: s.active and s.apply_to_group
-        )
-        
         # Determine start date
         start_date = self.season_id.start_date
         if future_only:
@@ -180,26 +175,15 @@ class AcademySessionTemplate(models.Model):
             ], limit=1)
             
             if not existing:
-                # Check if date falls in suspension window
-                is_suspended = any(
-                    susp.start_date <= current_date <= susp.end_date
-                    for susp in suspensions
-                )
-                
                 # Create occurrence
-                occurrence_vals = self._prepare_occurrence_vals(
-                    current_date, 
-                    is_suspended
-                )
+                occurrence_vals = self._prepare_occurrence_vals(current_date)
                 occurrence = Occurrence.create(occurrence_vals)
                 created_count += 1
                 
                 # Create follow-up if configured
                 if self.has_followup and not self.is_followup:
-                    followup_vals = self._prepare_followup_occurrence_vals(
-                        current_date, 
-                        is_suspended
-                    )
+                    followup_vals = self._prepare_followup_occurrence_vals(current_date)
+                    followup_vals['parent_occurrence_id'] = occurrence.id
                     Occurrence.create(followup_vals)
                     created_count += 1
             
@@ -214,7 +198,7 @@ class AcademySessionTemplate(models.Model):
         
         return created_count
 
-    def _prepare_occurrence_vals(self, date, is_suspended=False):
+    def _prepare_occurrence_vals(self, date):
         """Prepare values for creating an occurrence."""
         # Convert float time to datetime
         start_h = int(self.start_time)
@@ -224,8 +208,6 @@ class AcademySessionTemplate(models.Model):
         
         start_datetime = datetime.combine(date, time(start_h, start_m))
         end_datetime = datetime.combine(date, time(end_h, end_m))
-        
-        state = 'suspended' if is_suspended else 'planned'
         
         return {
             'template_id': self.id,
@@ -237,11 +219,10 @@ class AcademySessionTemplate(models.Model):
             'session_type': self.session_type,
             'court_ids': [(6, 0, self.court_ids.ids)],
             'coach_id': self.coach_id.id if self.coach_id else False,
-            'state': state,
             'is_individual': False,
         }
 
-    def _prepare_followup_occurrence_vals(self, date, is_suspended=False):
+    def _prepare_followup_occurrence_vals(self, date):
         """Prepare values for follow-up occurrence."""
         # Follow-up starts when base session ends
         end_h = int(self.end_time)
@@ -254,8 +235,6 @@ class AcademySessionTemplate(models.Model):
         start_datetime = datetime.combine(date, time(end_h, end_m))
         end_datetime = datetime.combine(date, time(followup_end_h, followup_end_m))
         
-        state = 'suspended' if is_suspended else 'planned'
-        
         return {
             'parent_occurrence_id': False,  # Will be set after base occurrence created
             'season_id': self.season_id.id,
@@ -266,7 +245,6 @@ class AcademySessionTemplate(models.Model):
             'session_type': self.followup_session_type,
             'court_ids': [(6, 0, self.court_ids.ids)],
             'coach_id': self.coach_id.id if self.coach_id else False,
-            'state': state,
             'is_individual': False,
             'is_followup': True,
         }

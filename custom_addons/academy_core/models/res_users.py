@@ -4,6 +4,37 @@ from odoo.osv import expression
 from odoo.tools.safe_eval import safe_eval
 
 
+class _EvalModel:
+    """Callable proxy returning recordsets when invoked with IDs."""
+
+    def __init__(self, recordset):
+        self._recordset = recordset
+
+    def __call__(self, *ids):
+        flat_ids = []
+        for value in ids:
+            if isinstance(value, (list, tuple, set)):
+                flat_ids.extend(value)
+            elif value is not None:
+                flat_ids.append(value)
+        return self._recordset.browse(flat_ids)
+
+    def __getattr__(self, attr):
+        return getattr(self._recordset, attr)
+
+
+class _EvalNamespace:
+    """Lazy namespace to resolve ``res.model`` access during safe_eval."""
+
+    def __init__(self, env, prefix: str = ""):
+        self._env = env
+        self._prefix = prefix
+
+    def __getattr__(self, item: str):
+        model = item if not self._prefix else f"{self._prefix}.{item}"
+        return _EvalModel(self._env[model])
+
+
 COACH_CATEGORY_SELECTION = [
     ('head', 'Head Coach'),
     ('senior', 'Senior Coach'),
@@ -125,15 +156,31 @@ class ResUsers(models.Model):
         if not desired_groups:
             return
 
-        context = safe_eval(action.context or '{}')  # type: ignore[attr-defined]
+        eval_namespace = {
+            'ref': self.env.ref,
+            'res': _EvalNamespace(self.env, 'res'),
+        }
+        context = safe_eval(action.context or '{}', eval_namespace)  # type: ignore[attr-defined]
         existing_command = context.get('default_group_ids') or context.get('default_groups_id')
+        needs_update = True
         if isinstance(existing_command, list) and existing_command:
             op, _, current_ids = existing_command[0]
-            if op == 6 and set(desired_groups).issubset(set(current_ids)):
-                return
+            normalized_ids = []
+            has_non_integer_ids = False
+            for group in current_ids or []:
+                if hasattr(group, 'id'):
+                    normalized_ids.append(group.id)
+                    has_non_integer_ids = True
+                else:
+                    normalized_ids.append(group)
+                    if not isinstance(group, int):
+                        has_non_integer_ids = True
+            if op == 6 and set(desired_groups).issubset(set(normalized_ids)) and not has_non_integer_ids:
+                needs_update = False
 
-        commands = [(6, 0, desired_groups)]
-        context['default_group_ids'] = commands
-        context.setdefault('default_groups_id', commands)
-        action.write({'context': repr(context)})  # type: ignore[attr-defined]
+        if needs_update:
+            commands = [(6, 0, desired_groups)]
+            context['default_group_ids'] = commands
+            context['default_groups_id'] = commands
+            action.write({'context': repr(context)})  # type: ignore[attr-defined]
 
