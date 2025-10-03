@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_individual_session_wizard_form" model="ir.ui.view">
+        <field name="name">academy.individual.session.wizard.form</field>
+        <field name="model">academy.individual.session.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Book Individual Session">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="player_ids" widget="many2many_tags"/>
+                            <field name="date"/>
+                            <field name="session_type"/>
+                        </group>
+                        <group>
+                            <field name="start_time" widget="float_time"/>
+                            <field name="end_time" widget="float_time"/>
+                            <field name="court_ids" widget="many2many_tags"/>
+                            <field name="coach_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="check_conflicts"/>
+                            <field name="check_double_booking"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Session notes..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_book" string="Book Session" 
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_individual_session_wizard" model="ir.actions.act_window">
+        <field name="name">Book Individual Session</field>
+        <field name="res_model">academy.individual.session.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

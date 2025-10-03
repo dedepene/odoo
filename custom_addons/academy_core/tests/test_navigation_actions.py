@@ -29,6 +29,7 @@ class TestAcademyNavigation(TransactionCase):
         self.assertEqual(menu.group_ids, site_admin_group)  # type: ignore[attr-defined]
 
     def test_coach_action_configuration(self):
+        self.env['res.users']._ensure_academy_coach_action_defaults()  # type: ignore[attr-defined]
         action = self.env.ref('academy_core.action_academy_coach')
         domain = self._eval_domain(action.domain)  # type: ignore[attr-defined]
         self.assertIn(('academy_is_coach', '=', True), domain)
@@ -38,7 +39,8 @@ class TestAcademyNavigation(TransactionCase):
         self.assertEqual(context.get('default_share'), False)
         self.assertEqual(context.get('search_default_active'), 1)
 
-        command = context.get('default_groups_id')
+        command = context.get('default_group_ids') or context.get('default_groups_id')
+        self.assertIsNotNone(command)
         self.assertIsInstance(command, list)
         self.assertTrue(command)
         self.assertEqual(command[0][0], 6)

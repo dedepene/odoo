@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_academy_session_template_tree" model="ir.ui.view">
+        <field name="name">academy.session.template.list</field>
+        <field name="model">academy.session.template</field>
+        <field name="arch" type="xml">
+            <list string="Session Templates">
+                <field name="name"/>
+                <field name="skill_group_id"/>
+                <field name="day_of_week"/>
+                <field name="start_time" widget="float_time"/>
+                <field name="end_time" widget="float_time"/>
+                <field name="session_type"/>
+                <field name="occurrence_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_academy_session_template_form" model="ir.ui.view">
+        <field name="name">academy.session.template.form</field>
+        <field name="model">academy.session.template</field>
+        <field name="arch" type="xml">
+            <form string="Session Template">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_occurrences" type="object" 
+                                class="oe_stat_button" icon="fa-calendar-check-o">
+                            <field name="occurrence_count" widget="statinfo" string="Occurrences"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="season_id"/>
+                            <field name="skill_group_id"/>
+                            <field name="day_of_week"/>
+                            <field name="session_type"/>
+                        </group>
+                        <group>
+                            <field name="start_time" widget="float_time"/>
+                            <field name="end_time" widget="float_time"/>
+                            <field name="duration"/>
+                            <field name="court_ids" widget="many2many_tags"/>
+                            <field name="coach_id"/>
+                        </group>
+                    </group>
+                    <group string="Follow-up Session">
+                        <field name="has_followup"/>
+                        <field name="followup_duration" invisible="not has_followup"/>
+                        <field name="followup_session_type" invisible="not has_followup"/>
+                    </group>
+                    <group>
+                        <field name="notes"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_academy_session_template" model="ir.actions.act_window">
+        <field name="name">Session Templates</field>
+        <field name="res_model">academy.session.template</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

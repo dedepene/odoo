@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_academy_session_absence_tree" model="ir.ui.view">
+        <field name="name">academy.session.absence.list</field>
+        <field name="model">academy.session.absence</field>
+        <field name="arch" type="xml">
+            <list string="Absences">
+                <field name="name"/>
+                <field name="player_id"/>
+                <field name="occurrence_id"/>
+                <field name="reason_code"/>
+                <field name="state" widget="badge"/>
+                <field name="report_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_academy_session_absence_form" model="ir.ui.view">
+        <field name="name">academy.session.absence.form</field>
+        <field name="model">academy.session.absence</field>
+        <field name="arch" type="xml">
+            <form string="Absence Report">
+                <header>
+                    <button name="action_acknowledge" string="Acknowledge" type="object" 
+                            class="oe_highlight" invisible="state != 'reported'"/>
+                    <button name="action_withdraw" string="Withdraw" type="object" 
+                            invisible="state != 'reported'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="occurrence_id"/>
+                            <field name="player_id"/>
+                            <field name="reason_code"/>
+                        </group>
+                        <group>
+                            <field name="reporter_id"/>
+                            <field name="report_date"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="reason_note" placeholder="Additional details..."/>
+                    </group>
+                    <group>
+                        <field name="attachment_ids" widget="many2many_binary"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_academy_session_absence" model="ir.actions.act_window">
+        <field name="name">Absences</field>
+        <field name="res_model">academy.session.absence</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_suspension_wizard_form" model="ir.ui.view">
+        <field name="name">academy.suspension.wizard.form</field>
+        <field name="model">academy.suspension.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Suspend Sessions">
+                <sheet>
+                    <group>
+                        <field name="season_id" readonly="1"/>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                            <field name="reason"/>
+                        </group>
+                        <group>
+                            <field name="apply_to_group"/>
+                            <field name="apply_to_individual"/>
+                            <field name="cancel_existing"/>
+                        </group>
+                    </group>
+                    <group>
+                        <p>This will create a suspension window and optionally cancel/suspend 
+                           existing planned sessions in the specified date range.</p>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_suspend" string="Suspend Sessions" 
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

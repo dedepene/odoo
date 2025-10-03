@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_academy_session_occurrence_tree" model="ir.ui.view">
+        <field name="name">academy.session.occurrence.list</field>
+        <field name="model">academy.session.occurrence</field>
+        <field name="arch" type="xml">
+            <list string="Sessions" decoration-muted="state == 'cancelled'" 
+                  decoration-warning="state == 'suspended'">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="start_datetime"/>
+                <field name="skill_group_id"/>
+                <field name="session_type"/>
+                <field name="court_ids" widget="many2many_tags"/>
+                <field name="coach_id"/>
+                <field name="absence_count"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_academy_session_occurrence_form" model="ir.ui.view">
+        <field name="name">academy.session.occurrence.form</field>
+        <field name="model">academy.session.occurrence</field>
+        <field name="arch" type="xml">
+            <form string="Session">
+                <header>
+                    <button name="action_cancel" string="Cancel" type="object" 
+                            invisible="state != 'planned'"/>
+                    <button name="action_reactivate" string="Reactivate" type="object" 
+                            invisible="state not in ['cancelled', 'suspended']"/>
+                    <button name="action_complete" string="Mark Complete" type="object" 
+                            class="oe_highlight" invisible="state != 'planned'"/>
+                    <button name="action_report_absence" string="Report Absence" type="object" 
+                            invisible="is_individual"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_absences" type="object" 
+                                class="oe_stat_button" icon="fa-times-circle" 
+                                invisible="is_individual">
+                            <field name="absence_count" widget="statinfo" string="Absences"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="template_id" readonly="1"/>
+                            <field name="season_id"/>
+                            <field name="date"/>
+                            <field name="skill_group_id" invisible="is_individual"/>
+                            <field name="player_ids" widget="many2many_tags" invisible="not is_individual"/>
+                        </group>
+                        <group>
+                            <field name="start_datetime"/>
+                            <field name="end_datetime"/>
+                            <field name="session_type"/>
+                            <field name="court_ids" widget="many2many_tags"/>
+                            <field name="coach_id"/>
+                            <field name="is_individual"/>
+                            <field name="is_followup"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_academy_session_occurrence_calendar" model="ir.ui.view">
+        <field name="name">academy.session.occurrence.calendar</field>
+        <field name="model">academy.session.occurrence</field>
+        <field name="arch" type="xml">
+            <calendar string="Sessions" date_start="start_datetime" date_stop="end_datetime" 
+                      color="skill_group_id" mode="week">
+                <field name="name"/>
+                <field name="skill_group_id"/>
+                <field name="court_ids"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- Search view commented out due to validation issues
+    <record id="view_academy_session_occurrence_search" model="ir.ui.view">
+        <field name="name">academy.session.occurrence.search</field>
+        <field name="model">academy.session.occurrence</field>
+        <field name="arch" type="xml">
+            <search string="Sessions">
+                <field name="name"/>
+                <field name="skill_group_id"/>
+                <field name="coach_id"/>
+                <field name="court_ids"/>
+                <filter name="planned" string="Planned" domain="[('state', '=', 'planned')]"/>
+                <filter name="suspended" string="Suspended" domain="[('state', '=', 'suspended')]"/>
+                <filter name="individual" string="Individual" domain="[('is_individual', '=', True)]"/>
+                <filter name="group" string="Group" domain="[('is_individual', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_skill_group" string="Skill Group" context="{'group_by': 'skill_group_id'}"/>
+                    <filter name="group_by_date" string="Date" context="{'group_by': 'date'}"/>
+                    <filter name="group_by_state" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    -->
+
+    <record id="action_academy_session_occurrence" model="ir.actions.act_window">
+        <field name="name">Sessions</field>
+        <field name="res_model">academy.session.occurrence</field>
+        <field name="view_mode">list,form,calendar</field>
+    </record>
+</odoo>

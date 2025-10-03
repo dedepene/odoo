@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Court List View -->
+    <record id="view_academy_court_tree" model="ir.ui.view">
+        <field name="name">academy.court.list</field>
+        <field name="model">academy.court</field>
+        <field name="arch" type="xml">
+            <list string="Courts">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="surface_type"/>
+                <field name="is_indoor"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Court Form View -->
+    <record id="view_academy_court_form" model="ir.ui.view">
+        <field name="name">academy.court.form</field>
+        <field name="model">academy.court</field>
+        <field name="arch" type="xml">
+            <form string="Court">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button" options='{"terminology": "archive"}'/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                        </group>
+                        <group>
+                            <field name="surface_type"/>
+                            <field name="is_indoor"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Additional information..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Court Action -->
+    <record id="action_academy_court" model="ir.actions.act_window">
+        <field name="name">Courts</field>
+        <field name="res_model">academy.court</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first court
+            </p>
+            <p>
+                Define the tennis courts available for scheduling sessions.
+            </p>
+        </field>
+    </record>
+</odoo>

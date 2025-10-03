@@ -5,12 +5,14 @@ from dateutil.relativedelta import relativedelta
 from odoo import fields
 from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
+from odoo.tools.sql import column_exists
 
 
 @tagged('academy_core')
 class TestAcademyPlayerConstraints(TransactionCase):
     def setUp(self):
         super().setUp()
+        self._ensure_autopost_bills_default()
         self.skill_group = self.env['academy.skill.group'].create({
             'name': 'Green Ball',
             'code': 'GREEN',
@@ -41,8 +43,19 @@ class TestAcademyPlayerConstraints(TransactionCase):
         if phone := overrides.get('phone'):
             base_vals['phone'] = phone
         if 'autopost_bills' in self.env['res.partner']._fields:
-            base_vals.setdefault('autopost_bills', False)
+            base_vals.setdefault('autopost_bills', 'never')
         return base_vals
+
+    def _ensure_autopost_bills_default(self):
+        if column_exists(self.env.cr, 'res_partner', 'autopost_bills'):
+            self.env.cr.execute(
+                "ALTER TABLE res_partner ALTER COLUMN autopost_bills SET DEFAULT %s",
+                ('never',),
+            )
+            self.env.cr.execute(
+                "UPDATE res_partner SET autopost_bills = %s WHERE autopost_bills IS NULL",
+                ('never',),
+            )
 
     def test_player_requires_guardian(self):
         vals = self._player_vals()

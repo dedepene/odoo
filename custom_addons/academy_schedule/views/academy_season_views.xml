@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Season Form View -->
+    <record id="view_academy_season_form" model="ir.ui.view">
+        <field name="name">academy.season.form</field>
+        <field name="model">academy.season</field>
+        <field name="arch" type="xml">
+            <form string="Season">
+                <header>
+                    <button name="action_activate" string="Activate" type="object" 
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_suspend" string="Suspend" type="object" 
+                            invisible="state != 'active'"/>
+                    <button name="action_complete" string="Complete" type="object" 
+                            invisible="state not in ['active', 'suspended']"/>
+                    <button name="action_open_schedule_wizard" string="Define Weekly Schedule" 
+                            type="object" class="oe_highlight" invisible="state != 'active'"/>
+                    <button name="action_generate_occurrences" string="Generate Missing Occurrences" 
+                            type="object" invisible="state != 'active'"/>
+                    <button name="action_open_suspension_wizard" string="Suspend Sessions" 
+                            type="object" invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button" options='{"terminology": "archive"}'/>
+                        </button>
+                        <button name="action_view_templates" type="object" 
+                                class="oe_stat_button" icon="fa-calendar">
+                            <field name="template_count" widget="statinfo" string="Templates"/>
+                        </button>
+                        <button name="action_view_occurrences" type="object" 
+                                class="oe_stat_button" icon="fa-calendar-check-o">
+                            <field name="occurrence_count" widget="statinfo" string="Sessions"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Notes">
+                            <field name="notes" placeholder="Season notes..."/>
+                        </page>
+                        <page string="Suspensions">
+                            <field name="suspension_ids">
+                                <list editable="bottom">
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
+                                    <field name="reason"/>
+                                    <field name="apply_to_group"/>
+                                    <field name="apply_to_individual"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Season List View -->
+    <record id="view_academy_season_tree" model="ir.ui.view">
+        <field name="name">academy.season.list</field>
+        <field name="model">academy.season</field>
+        <field name="arch" type="xml">
+            <list string="Seasons">
+                <field name="name"/>
+                <field name="start_date"/>
+                <field name="end_date"/>
+                <field name="state" widget="badge" 
+                       decoration-success="state == 'active'" 
+                       decoration-info="state == 'draft'"
+                       decoration-warning="state == 'suspended'"
+                       decoration-muted="state == 'completed'"/>
+                <field name="template_count"/>
+                <field name="occurrence_count"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Season Action -->
+    <record id="action_academy_season" model="ir.actions.act_window">
+        <field name="name">Seasons</field>
+        <field name="res_model">academy.season</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first season
+            </p>
+            <p>
+                Define seasons to organize your academy year and schedule sessions.
+            </p>
+        </field>
+    </record>
+</odoo>

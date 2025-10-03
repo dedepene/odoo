@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_weekly_schedule_wizard_form" model="ir.ui.view">
+        <field name="name">academy.weekly.schedule.wizard.form</field>
+        <field name="model">academy.weekly.schedule.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Define Weekly Schedule">
+                <sheet>
+                    <group>
+                        <field name="season_id" readonly="1"/>
+                    </group>
+                    <group string="Schedule Matrix">
+                        <p>Add schedule lines for each skill group and day combination.</p>
+                        <field name="line_ids">
+                            <list editable="bottom">
+                                <field name="skill_group_id"/>
+                                <field name="day_of_week"/>
+                                <field name="start_time" widget="float_time"/>
+                                <field name="end_time" widget="float_time"/>
+                                <field name="session_type"/>
+                                <field name="court_ids" widget="many2many_tags"/>
+                                <field name="coach_id"/>
+                                <field name="has_followup"/>
+                                <field name="followup_duration" optional="hide"/>
+                                <field name="followup_session_type" optional="hide"/>
+                            </list>
+                        </field>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_apply" string="Apply &amp; Generate Sessions" 
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

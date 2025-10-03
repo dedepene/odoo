@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main Scheduling Menu -->
+    <menuitem id="menu_academy_schedule_root"
+              name="Scheduling"
+              parent="academy_core.menu_academy_root"
+              sequence="20"/>
+
+    <!-- Configuration Submenu -->
+    <menuitem id="menu_academy_schedule_config"
+              name="Configuration"
+              parent="menu_academy_schedule_root"
+              sequence="100"/>
+
+    <!-- Courts -->
+    <menuitem id="menu_academy_court"
+              name="Courts"
+              parent="menu_academy_schedule_config"
+              action="action_academy_court"
+              sequence="10"/>
+
+    <!-- Seasons -->
+    <menuitem id="menu_academy_season"
+              name="Seasons"
+              parent="menu_academy_schedule_root"
+              action="action_academy_season"
+              sequence="10"/>
+
+    <!-- Templates -->
+    <menuitem id="menu_academy_session_template"
+              name="Session Templates"
+              parent="menu_academy_schedule_root"
+              action="action_academy_session_template"
+              sequence="20"/>
+
+    <!-- Sessions -->
+    <menuitem id="menu_academy_session_occurrence"
+              name="Sessions"
+              parent="menu_academy_schedule_root"
+              action="action_academy_session_occurrence"
+              sequence="30"/>
+
+    <!-- Absences -->
+    <menuitem id="menu_academy_session_absence"
+              name="Absences"
+              parent="menu_academy_schedule_root"
+              action="action_academy_session_absence"
+              sequence="40"/>
+
+    <!-- Individual Session Booking Action (accessible from menu or button) -->
+    <menuitem id="menu_academy_individual_session"
+              name="Book Individual Session"
+              parent="menu_academy_schedule_root"
+              action="action_individual_session_wizard"
+              sequence="35"/>
+</odoo>

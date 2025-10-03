@@ -42,6 +42,8 @@
             <field name="context">{
                 'default_academy_is_coach': True,
                 'default_share': False,
+                'default_group_ids': [(6, 0, [ref('base.group_user'), ref('academy_core.group_academy_coach')])],
+                'default_groups_id': [(6, 0, [ref('base.group_user'), ref('academy_core.group_academy_coach')])],
                 'search_default_active': 1
             }</field>
             <field name="help" type="html">

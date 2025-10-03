@@ -28,7 +28,7 @@ Use this document to put together a roadmap and top-level design to modify this 
   - a guardian should be able to notify the coaching staff when a kid is going to be absent from a sheduled practice session. This is not meant to be like in a chat or other real-time interaction. More like creating event on a shared calendar, or modifying an existing event. I need suggestions here.
   - a scheduled training session is to be associated with a tennis court - e.g. reds and oranges on Tuesday starting at 17 and ending at 19 book court numbers 1, 3 and 5
   - once the group sessions are schedules they repeat each week without alterations.
-  - when/if there's a indoor dome going up all schedules are to be suspended for the duration
+  - when/if there's a indoor dome going up or a tournament is taking place all schedules are to be suspended for the duration
   - each coach, not only the head coaches can schedule individual practice sessions with one or more than one players
   - the lead coach's schedule/calendar should be available to the associated kids and their guardians in addition to the other coaches. However the schedule should not be available to kids or guradinans who are not assigned to this coach
   
@@ -42,7 +42,7 @@ Use this document to put together a roadmap and top-level design to modify this 
 4. Reports
   - a report should be available to show the attendance of each player for the month
   - a progress report should be available for each player showing their skill level and improvements over time. This is to be filled in by the lead coach and should be available to the player and their guardians. The coach should be able to specify the period the report covers and also add comments. The report should be versioned so that previous reports are available for review.
-  
+
 ### Extras and suggestions
 
 1. Highlight any potential issues or conflicts with what I have outlined above
