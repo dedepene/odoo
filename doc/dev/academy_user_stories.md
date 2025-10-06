@@ -371,6 +371,58 @@ Permit a guardian (or elevated player) to proactively flag a future absence from
 4. Chatter message on occurrence; coach notification email optional.
 5. Coach may mark state = acknowledged.
 
+### 2.3.5 Invite Guardian → Portal (New: Staff-invited guardian portal access)
+
+#### Purpose
+Provide a low-friction, auditable way for staff to convert an existing guardian contact (`res.partner`) into a portal user so they can use the portal to report absences, view child schedules, and receive notifications.
+
+#### Actors
+| Role | Responsibility |
+|------|----------------|
+| Site Admin / Head Coach | Initiates invite and configures guardian portal group membership |
+| Coach / Staff | May invite guardians from player form |
+| Guardian (partner) | Receives invite email and completes onboarding |
+
+#### Preconditions
+- Guardian exists as a `res.partner` with a valid email.
+- No existing `res.users` with the same login/email (case-insensitive).
+
+#### Triggers
+1. Staff clicks **Invite Guardian to Portal** on a player form or guardian partner record.
+2. Batch invite from a guardian list (future enhancement).
+
+#### Happy Path Flow
+1. Staff clicks invite action and confirms the email/login.
+2. System validates email presence and uniqueness.
+3. Create `res.users` linked to the guardian partner and add groups: `group_portal`, `group_academy_guardian_portal`.
+4. System calls `action_reset_password()` to send the invite token email.
+5. System posts chatter on partner and related player indicating portal access granted.
+6. Guardian logs into portal and sees the child's scheduled occurrences and the "Report Absence" action.
+
+#### Alternative / Error Paths
+| Condition | Outcome |
+|-----------|---------|
+| Missing email | Block invite; show action to edit partner and add email |
+| Email/login already used | ValidationError; suggest using different email or linking existing user |
+| Shared family email (policy disallows) | Offer manual review or require unique email per guardian |
+
+#### Postconditions
+- `res.users` created and linked to partner; guardian can authenticate.
+- Chatter messages created for audit trail.
+
+#### Security & Permissions
+- New technical group `group_academy_guardian_portal` (inherits `portal`) to scope guardian permissions.
+- Record rules restrict guardian portal users to only see their child's occurrences and absence records.
+
+#### Acceptance Criteria
+| ID | Criterion |
+|----|-----------|
+| GINV1 | Invite creates one `res.users` per guardian and reuses the existing partner |
+| GINV2 | Login/email uniqueness enforced (case-insensitive) |
+| GINV3 | Guardian receives invite email with a reset token |
+| GINV4 | After onboarding, guardian can report absence via the portal (story 2.3 flow) |
+
+
 ### 2.3.5 Data Model
 | Entity | Fields |
 |--------|--------|

@@ -66,4 +66,19 @@ Follow the steps per persona to confirm the implementation.
 - Age enforcement aligns with group configuration (steps E1–E3).
 - Elevation wizard creates portal users with correct group memberships and prevents duplicates (steps F1–F5).
 
+4. **Invite Guardian Workflow (Site Admins & Coaches)**
+    - Purpose: Allow staff to invite a guardian (existing `res.partner`) to the portal with a single action, creating a `res.users` linked to the partner and sending an invite/reset token.
+    - Behaviour:
+       - Action available on `academy.player` and guardian partner form: "Invite Guardian to Portal".
+       - Validates partner has an email; performs case-insensitive uniqueness check on login/email.
+       - Creates `res.users` with `partner_id` = guardian partner, assigns `group_portal` and `group_academy_guardian_portal` (custom group), and calls `action_reset_password()` to send an invite.
+       - Posts a chatter message on the guardian partner and the related player (if invoked from player form).
+    - Manual Verification:
+       1. Create a guardian partner with a valid email.
+       2. Open the player form, click **Invite Guardian to Portal** next to the primary guardian.
+       3. Confirm the user appears in **Settings ▸ Users & Companies ▸ Users** with portal + guardian groups.
+       4. Confirm an invite email is received and that the partner form shows a portal badge.
+       5. Attempt to invite the same guardian again — expect a clear error about existing login/email.
+
+
 Document and share any deviations—these mark regressions against the core deliverables.
