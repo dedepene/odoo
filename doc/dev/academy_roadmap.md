@@ -359,9 +359,9 @@ Core:
 - [x] Expose Guardians & Coaches menus so site admins can list, create, edit, and archive those records alongside Players
 
 Schedule:
-- [ ] Session template model & cron
-- [ ] Overlap constraints (court/coach)
-- [ ] Suspension handling
+- [x] Session template model & cron
+- [x] Overlap constraints (court/coach)
+- [x] Suspension handling
 
 Attendance:
 - [ ] Attendance model & generation

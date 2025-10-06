@@ -78,6 +78,24 @@ academy.season (1) ──────┐
 
 ## 2. Core Models & Functionality
 
+## Recent changes (implementation notes)
+
+These notes capture important implementation details added in the latest work (October 2025).
+
+- Suspension implementation:
+    - Added `academy.season.suspension` lifecycle helpers to support both wizard-driven and manual suspension management:
+        - `_build_occurrence_domain(future_only=False)` — builds a search domain for `academy.session.occurrence` records affected by a suspension window, respecting `apply_to_group` / `apply_to_individual` flags and optional `future_only` filtering.
+        - `apply_window(include_existing=True)` — applies the suspension to matching occurrences (suspends existing planned occurrences when `include_existing=True`). This calls existing occurrence helper `_suspend_with` to set `state='suspended'`, `state_before_suspension` and `suspension_id`.
+        - `_ensure_season_state()` — small helper to ensure the parent season is in an appropriate state (activates a draft season for operations when necessary).
+        - `_lift_suspension()` — lifts the suspension from future occurrences by delegating to `academy.session.occurrence`'s `_lift_suspension` helper.
+
+- Occurrence synchronization:
+    - `academy.session.occurrence` contains `_sync_suspension_state` which keeps each occurrence aligned with active suspension windows. This runs on create and on writes that affect `date`, `season_id`, `is_individual`, or when state-related fields are not being set directly.
+    - `_find_applicable_suspension` returns the current active suspension window that covers the occurrence date and matches the `is_individual` flag.
+    - `_suspend_with` and `_lift_suspension` on occurrences perform the concrete write operations to set and restore state while avoiding recursive sync (via context `skip_suspension_sync`).
+
+These additions complete the suspension lifecycle: wizard creation → suspension record → optional mass-suspend of existing planned occurrences → future generation respects suspension windows → deactivation lifts future suspended occurrences.
+
 ### 2.1 Courts (`academy.court`)
 
 **Purpose:** Represents physical tennis courts available for scheduling.

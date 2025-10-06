@@ -18,11 +18,37 @@ class TestAcademyScheduleSuspension(TransactionCase):
             'max_age': 12,
         })
 
-        self.guardian = self.env['res.partner'].create({
+        base_vals = {
             'name': 'Parent One',
             'email': 'parent@example.com',
             'phone': '555-0100',
-        })
+        }
+        # Some test environments or module load orders may not have the
+        # `autopost_bills` field available on the ORM, but the DB column
+        # may still be present and declared NOT NULL. Ensure the DB is
+        # backfilled and has a server default so plain INSERTs (without
+        # the ORM field) don't fail. This is a safe no-op when the
+        # column doesn't exist.
+        try:
+            self.env.cr.execute("""
+                UPDATE res_partner SET autopost_bills = 'ask' WHERE autopost_bills IS NULL;
+            """)
+            # set a server default so future raw INSERTs get a value
+            try:
+                self.env.cr.execute(
+                    "ALTER TABLE res_partner ALTER COLUMN autopost_bills SET DEFAULT 'ask'"
+                )
+            except Exception:
+                # If column doesn't exist or DB doesn't allow alter here,
+                # ignore and continue; INSERT will include ORM default when available.
+                pass
+        except Exception:
+            # Column likely doesn't exist yet - ignore and rely on ORM defaults
+            pass
+        # Include the ORM field when present
+        if 'autopost_bills' in self.env['res.partner']._fields:
+            base_vals['autopost_bills'] = 'ask'
+        self.guardian = self.env['res.partner'].create(base_vals)
 
         player_dob = self.today - relativedelta(years=10)
         self.player = self.env['academy.player'].create({
@@ -43,6 +69,26 @@ class TestAcademyScheduleSuspension(TransactionCase):
             'end_date': self.today + timedelta(days=30),
             'active': True,
         })
+        # Some environments include pre-existing active seasons (demo or
+        # fixtures) that overlap with our test season. The model enforces
+        # non-overlapping active seasons which causes tests to fail when the
+        # demo season is present. Deactivate any overlapping active seasons
+        # (except the one we just created) before activating ours.
+        try:
+            overlapping = self.env['academy.season'].search([
+                ('id', '!=', self.season.id),
+                ('active', '=', True),
+                ('start_date', '<=', self.season.end_date),
+                ('end_date', '>=', self.season.start_date),
+            ])
+            if overlapping:
+                overlapping.write({'active': False, 'state': 'draft'})
+        except Exception:
+            # If the season model or fields aren't available yet for any
+            # reason, ignore and let action_activate raise the original
+            # error — other guards in tests will catch it.
+            pass
+
         self.season.action_activate()
 
     # ------------------------------------------------------------------
