@@ -27,7 +27,7 @@
             <form string="Session">
                 <header>
                     <button name="action_cancel" string="Cancel" type="object" 
-                            invisible="state != 'planned'"/>
+                            class="btn btn-danger" invisible="state != 'planned'"/>
                     <button name="action_reactivate" string="Reactivate" type="object" 
                             invisible="state not in ['cancelled', 'suspended']"/>
                     <button name="action_complete" string="Mark Complete" type="object" 

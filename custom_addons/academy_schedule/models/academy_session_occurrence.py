@@ -1,5 +1,6 @@
 """Session occurrence model for actual scheduled sessions."""
 from datetime import datetime
+import pytz
 from typing import TYPE_CHECKING
 
 from odoo import api, fields, models
@@ -192,9 +193,20 @@ class AcademySessionOccurrence(models.Model):
                 player_names = ', '.join(occurrence.player_ids.mapped('name')[:3])
                 occurrence.name = f"Individual: {player_names} - {occurrence.date}"
             elif occurrence.skill_group_id:
+                # Format start time in user's/context timezone (stored datetimes are UTC)
+                try:
+                    # Use environment tzinfo (occurrence.env.tz) so we match Odoo's display tz
+                    context_tz = occurrence.env.tz or pytz.utc
+                    # stored datetime is naive UTC; localize to UTC then convert
+                    start_dt_local = pytz.utc.localize(occurrence.start_datetime).astimezone(context_tz)
+                    time_str = start_dt_local.strftime('%H:%M')
+                except Exception:
+                    # fallback to naive formatting
+                    time_str = occurrence.start_datetime.strftime('%H:%M')
+
                 occurrence.name = (f"{occurrence.skill_group_id.name} - "
                                  f"{occurrence.date} "
-                                 f"{occurrence.start_datetime.strftime('%H:%M')}")
+                                 f"{time_str}")
             else:
                 occurrence.name = f"Session {occurrence.date}"
 

@@ -2,6 +2,7 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 from datetime import datetime, timedelta, time
+import pytz
 
 
 class AcademySessionTemplate(models.Model):
@@ -206,8 +207,24 @@ class AcademySessionTemplate(models.Model):
         end_h = int(self.end_time)
         end_m = int((self.end_time % 1) * 60)
         
+        # create naive datetimes in local wall time (date + hh:mm)
         start_datetime = datetime.combine(date, time(start_h, start_m))
         end_datetime = datetime.combine(date, time(end_h, end_m))
+
+        # Localize to environment timezone (or user's tz) and convert to UTC
+        tz_name = self.env.context.get('tz') or self.env.user.tz or 'UTC'
+        try:
+            context_tz = pytz.timezone(tz_name)
+        except Exception:
+            context_tz = pytz.utc
+
+        # Localize naive datetimes to the context timezone, then convert to UTC
+        start_dt_localized = context_tz.localize(start_datetime)
+        end_dt_localized = context_tz.localize(end_datetime)
+
+        # Odoo stores datetimes in UTC without tzinfo (naive UTC datetimes)
+        start_datetime = start_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
+        end_datetime = end_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
         
         return {
             'template_id': self.id,
@@ -232,8 +249,22 @@ class AcademySessionTemplate(models.Model):
         followup_end_h = int(followup_end_time)
         followup_end_m = int((followup_end_time % 1) * 60)
         
+        # create naive datetimes in local wall time
         start_datetime = datetime.combine(date, time(end_h, end_m))
         end_datetime = datetime.combine(date, time(followup_end_h, followup_end_m))
+
+        # Localize to environment timezone and convert to UTC naive datetimes
+        tz_name = self.env.context.get('tz') or self.env.user.tz or 'UTC'
+        try:
+            context_tz = pytz.timezone(tz_name)
+        except Exception:
+            context_tz = pytz.utc
+
+        start_dt_localized = context_tz.localize(start_datetime)
+        end_dt_localized = context_tz.localize(end_datetime)
+
+        start_datetime = start_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
+        end_datetime = end_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
         
         return {
             'parent_occurrence_id': False,  # Will be set after base occurrence created
