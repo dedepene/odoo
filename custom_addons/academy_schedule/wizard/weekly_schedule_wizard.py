@@ -1,10 +1,11 @@
-"""Weekly schedule definition wizard for creating session templates."""
+"""Weekly schedule definition wizard for selecting and scheduling session templates."""
+import logging
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
 
 class WeeklyScheduleWizard(models.TransientModel):
-    """Wizard for defining weekly recurring session templates."""
+    """Wizard for selecting which session templates to schedule."""
     
     _name = 'academy.weekly.schedule.wizard'
     _description = 'Weekly Schedule Definition Wizard'
@@ -12,20 +13,32 @@ class WeeklyScheduleWizard(models.TransientModel):
     season_id = fields.Many2one('academy.season', string='Season', required=True,
                                readonly=True)
     line_ids = fields.One2many('academy.weekly.schedule.wizard.line', 'wizard_id',
-                              string='Schedule Lines')
+                              string='Available Templates')
     
     @api.model
     def default_get(self, fields_list):
-        """Load existing templates if editing."""
+        """Load existing templates as selectable lines."""
+        _logger = logging.getLogger(__name__)
+        _logger.info(f"=== DEFAULT_GET CALLED ===")
+        _logger.info(f"fields_list: {fields_list}")
+        _logger.info(f"context: {self.env.context}")
+        
         res = super().default_get(fields_list)
         season_id = self.env.context.get('default_season_id')
         
+        _logger.info(f"season_id from context: {season_id}")
+        
         if season_id and 'line_ids' in fields_list:
             season = self.env['academy.season'].browse(season_id)
+            _logger.info(f"Season: {season.name}, Templates count: {len(season.template_ids)}")
             lines = []
-            for template in season.template_ids.filtered(lambda t: not t.is_followup):
+            # Load all non-followup templates as selectable lines
+            for template in season.template_ids.filtered(lambda t: not t.is_followup and t.active):
+                _logger.info(f"Adding template: {template.skill_group_id.name} - {template.day_of_week}")
                 lines.append((0, 0, {
                     'template_id': template.id,
+                    'selected': True,  # Pre-select all by default
+                    # Copy template data directly so it persists
                     'skill_group_id': template.skill_group_id.id,
                     'day_of_week': template.day_of_week,
                     'start_time': template.start_time,
@@ -33,75 +46,75 @@ class WeeklyScheduleWizard(models.TransientModel):
                     'session_type': template.session_type,
                     'court_ids': [(6, 0, template.court_ids.ids)],
                     'coach_id': template.coach_id.id if template.coach_id else False,
-                    'has_followup': template.has_followup,
-                    'followup_duration': template.followup_duration,
-                    'followup_session_type': template.followup_session_type,
+                    'occurrence_count': template.occurrence_count,
                 }))
             res['line_ids'] = lines
+            _logger.info(f"Created {len(lines)} wizard lines")
         
+        _logger.info(f"default_get returning: {res}")
         return res
 
     def action_apply(self):
-        """Create or update templates and generate occurrences."""
+        """Generate occurrences for selected templates only."""
         self.ensure_one()
         
-        Template = self.env['academy.session.template']
-        created_count = 0
-        updated_count = 0
-        occurrence_count = 0
+        # Debug: Check what we have
+        _logger = logging.getLogger(__name__)
+        _logger.info(f"=== WIZARD DEBUG ===")
+        _logger.info(f"Season: {self.season_id.name} (ID: {self.season_id.id})")
+        _logger.info(f"Total lines: {len(self.line_ids)}")
         
-        # Process each line
+        occurrence_count = 0
+        selected_count = 0
+        
+        # Process only selected lines
         for line in self.line_ids:
-            line._validate_line()
-            
-            if line.template_id:
-                # Update existing template
-                line.template_id.write(line._prepare_template_vals())
-                updated_count += 1
-            else:
-                # Create new template
-                template = Template.create(line._prepare_template_vals())
-                line.template_id = template
-                created_count += 1
-            
-            # Generate occurrences
-            count = line.template_id.generate_occurrences()
-            occurrence_count += count
+            _logger.info(f"Line ID {line.id}: selected={line.selected}, template_id={line.template_id.id if line.template_id else 'MISSING'}")
+            if line.selected and line.template_id:
+                count = line.template_id.generate_occurrences()
+                occurrence_count += count
+                selected_count += 1
         
         # Log to season chatter
         summary = (
-            f"Weekly schedule updated:\n"
-            f"- Created {created_count} new templates\n"
-            f"- Updated {updated_count} templates\n"
-            f"- Generated {occurrence_count} occurrences"
+            f"Weekly schedule applied:\n"
+            f"- Scheduled {selected_count} template(s)\n"
+            f"- Generated {occurrence_count} session occurrences"
         )
         self.season_id.message_post(body=summary)
         
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
+        # Show success message in UI
+        self.env['bus.bus']._sendone(
+            self.env.user.partner_id,
+            'simple_notification',
+            {
                 'title': 'Success',
-                'message': f'Schedule updated. Generated {occurrence_count} sessions.',
+                'message': f'Generated {occurrence_count} sessions from {selected_count} template(s).',
                 'type': 'success',
                 'sticky': False,
             }
-        }
+        )
+        
+        # Close the wizard
+        return {'type': 'ir.actions.act_window_close'}
 
 
 class WeeklyScheduleWizardLine(models.TransientModel):
-    """Individual schedule line for wizard."""
+    """Selectable template line for scheduling."""
     
     _name = 'academy.weekly.schedule.wizard.line'
     _description = 'Weekly Schedule Line'
 
     wizard_id = fields.Many2one('academy.weekly.schedule.wizard', required=True,
                                ondelete='cascade')
-    template_id = fields.Many2one('academy.session.template', string='Existing Template')
+    template_id = fields.Many2one('academy.session.template', string='Template', 
+                                 required=True, readonly=False)  # Must be editable for web client to send it
     
-    # Template fields
-    skill_group_id = fields.Many2one('academy.skill.group', string='Skill Group',
-                                    required=True)
+    selected = fields.Boolean(string='Schedule', default=True,
+                            help='Check to generate sessions for this template')
+    
+    # Store template data directly (not as related fields) so it persists in transient model
+    skill_group_id = fields.Many2one('academy.skill.group', string='Skill Group', readonly=True)
     day_of_week = fields.Selection([
         ('0', 'Monday'),
         ('1', 'Tuesday'),
@@ -110,69 +123,13 @@ class WeeklyScheduleWizardLine(models.TransientModel):
         ('4', 'Friday'),
         ('5', 'Saturday'),
         ('6', 'Sunday'),
-    ], string='Day', required=True)
-    
-    start_time = fields.Float(string='Start Time', required=True)
-    end_time = fields.Float(string='End Time', required=True)
-    
+    ], readonly=True)
+    start_time = fields.Float(string='Start Time', readonly=True)
+    end_time = fields.Float(string='End Time', readonly=True)
     session_type = fields.Selection([
-        ('tennis_group', 'Tennis Skills (Group)'),
-        ('physical_group', 'Physical Activities (Group)'),
-    ], string='Type', default='tennis_group', required=True)
-    
-    court_ids = fields.Many2many('academy.court', string='Courts', required=True)
-    coach_id = fields.Many2one('res.users', string='Coach')
-    
-    # Follow-up configuration
-    has_followup = fields.Boolean(string='Add Physical Follow-up', default=False)
-    followup_duration = fields.Float(string='Follow-up Duration', default=1.0)
-    followup_session_type = fields.Selection([
-        ('physical_group', 'Physical Activities (Group)'),
-    ], string='Follow-up Type', default='physical_group')
-    
-    def _validate_line(self):
-        """Validate line data before creating template."""
-        self.ensure_one()
-        
-        if self.start_time >= self.end_time:
-            raise ValidationError(
-                f'Invalid time for {self.skill_group_id.name}: '
-                f'End time must be after start time!'
-            )
-        
-        # Check for court conflicts with other lines in this wizard
-        for other_line in self.wizard_id.line_ids:
-            if other_line.id == self.id or other_line.day_of_week != self.day_of_week:
-                continue
-            
-            # Check time overlap
-            if (self.start_time < other_line.end_time and 
-                self.end_time > other_line.start_time):
-                # Check court overlap
-                common_courts = set(self.court_ids.ids) & set(other_line.court_ids.ids)
-                if common_courts:
-                    court_names = ', '.join(
-                        self.env['academy.court'].browse(list(common_courts)).mapped('name')
-                    )
-                    raise ValidationError(
-                        f'Court conflict on {dict(self._fields["day_of_week"].selection)[self.day_of_week]}:\n'
-                        f'{self.skill_group_id.name} and {other_line.skill_group_id.name} '
-                        f'both use courts: {court_names}'
-                    )
-    
-    def _prepare_template_vals(self):
-        """Prepare values for template creation/update."""
-        return {
-            'season_id': self.wizard_id.season_id.id,
-            'skill_group_id': self.skill_group_id.id,
-            'day_of_week': self.day_of_week,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'session_type': self.session_type,
-            'court_ids': [(6, 0, self.court_ids.ids)],
-            'coach_id': self.coach_id.id if self.coach_id else False,
-            'has_followup': self.has_followup,
-            'followup_duration': self.followup_duration,
-            'followup_session_type': self.followup_session_type,
-            'active': True,
-        }
+        ('tennis_group', 'Tennis Group'),
+        ('physical_group', 'Physical Group'),
+    ], readonly=True)
+    court_ids = fields.Many2many('academy.court', string='Courts', readonly=True)
+    coach_id = fields.Many2one('res.users', string='Coach', readonly=True)
+    occurrence_count = fields.Integer(string='Existing Sessions', readonly=True)

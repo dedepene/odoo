@@ -47,7 +47,7 @@
                     <sheet>
                         <group>
                             <group>
-                                <field name="reference" readonly="1"/>
+                                        <field name="reference" readonly="1"/>
                                 <field name="name" required="1"/>
                                 <field name="dob" required="1"/>
                                 <field name="age_years" readonly="1"/>
@@ -59,9 +59,9 @@
                         widget="many2many_tags"
                         context="{'default_academy_is_guardian': True}"
                         required="1"/>
-                    <field name="primary_guardian_id"
-                        context="{'default_academy_is_guardian': True}"
-                        required="1"/>
+                            <field name="primary_guardian_id"
+                                context="{'default_academy_is_guardian': True}"
+                                required="1"/>
                                 <field name="elevation_allowed"/>
                                 <field name="active"/>
                             </group>

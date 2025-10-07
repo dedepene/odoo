@@ -185,3 +185,28 @@ class AcademyPlayer(models.Model):
                 'default_player_id': self.id,
             },
         }
+
+    def action_invite_primary_guardian(self):
+        """Invite the primary guardian (if set) to the portal.
+
+        This delegates to the partner method and posts a chatter message on the player.
+        """
+        self.ensure_one()
+        guardian = self.primary_guardian_id
+        if not guardian:
+            raise ValidationError('This player has no primary guardian to invite.')
+        try:
+            user = guardian.action_invite_guardian_to_portal()
+        except Exception as e:
+            # Propagate useful errors (e.g., ValidationError about email/duplicate)
+            raise
+        # Post message on player record
+        self.message_post(body='An invitation to the portal was sent to guardian %s.' % (guardian.email or guardian.name))
+        # Also link portal_user_id to created user if not set
+        if user and not self.portal_user_id:
+            # if the created user was intended as a player portal (not guardian), we still store for visibility
+            try:
+                self.portal_user_id = user.id
+            except Exception:
+                pass
+        return True

@@ -6,7 +6,7 @@
     'author': 'dedepene',
     'website': 'https://example.com',
     'category': 'Education',
-    'depends': ['base', 'contacts', 'portal'],
+    'depends': ['base', 'contacts', 'portal', 'sale'],
     'data': [
         'security/academy_security.xml',
         'security/ir.model.access.csv',
@@ -15,6 +15,7 @@
         'views/academy_player_views.xml',
         'views/res_partner_views.xml',
     'views/res_users_views.xml',
+        'views/portal_practice_templates.xml',
         'views/player_elevation_wizard_views.xml',
         'views/academy_menu_views.xml',
     ],

@@ -6,6 +6,9 @@
             <field name="model">res.partner</field>
             <field name="inherit_id" ref="base.view_partner_form"/>
             <field name="arch" type="xml">
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button name="action_invite_guardian_to_portal" type="object" string="Upgrade to Portal" class="oe_highlight" invisible="not (academy_is_guardian and email and id)"/>
+                </xpath>
                 <xpath expr="//group[2]/field[@name='website']" position="after">
                     <field name="academy_is_guardian"/>
                 </xpath>

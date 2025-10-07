@@ -112,27 +112,36 @@ class AcademySessionTemplate(models.Model):
         for template in self:
             if not template.court_ids:
                 continue
+            
+            # Skip validation during creation before all fields are set
+            if not template.id or not template.season_id:
+                continue
                 
             # Find templates on same day with overlapping time
+            # We check for actual time overlap: two sessions overlap if one starts 
+            # before the other ends AND ends after the other starts
             conflicting = self.search([
                 ('id', '!=', template.id),
                 ('season_id', '=', template.season_id.id),
                 ('day_of_week', '=', template.day_of_week),
                 ('active', '=', True),
                 ('court_ids', 'in', template.court_ids.ids),
-                '|',
-                '&', ('start_time', '<', template.end_time),
-                     ('end_time', '>', template.start_time),
-                '&', ('start_time', '>=', template.start_time),
-                     ('start_time', '<', template.end_time),
+                ('start_time', '<', template.end_time),
+                ('end_time', '>', template.start_time),
             ])
             
             if conflicting:
-                court_names = ', '.join(template.court_ids.mapped('name'))
-                raise ValidationError(
-                    f'Court conflict detected! Courts {court_names} are already '
-                    f'allocated to: {conflicting[0].name}'
-                )
+                # Double-check that there's actually a court overlap (not just any court)
+                for conf in conflicting:
+                    common_courts = set(template.court_ids.ids) & set(conf.court_ids.ids)
+                    if common_courts:
+                        court_names = ', '.join(
+                            self.env['academy.court'].browse(list(common_courts)).mapped('name')
+                        )
+                        raise ValidationError(
+                            f'Court conflict detected! Courts {court_names} are already '
+                            f'allocated to: {conf.name}'
+                        )
 
     def generate_occurrences(self, future_only=False):
         """Generate session occurrences from this template.

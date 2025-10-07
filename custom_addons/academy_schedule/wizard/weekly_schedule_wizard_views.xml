@@ -4,15 +4,17 @@
         <field name="name">academy.weekly.schedule.wizard.form</field>
         <field name="model">academy.weekly.schedule.wizard</field>
         <field name="arch" type="xml">
-            <form string="Define Weekly Schedule">
+            <form string="Schedule Session Templates">
                 <sheet>
                     <group>
                         <field name="season_id" readonly="1"/>
                     </group>
-                    <group string="Schedule Matrix">
-                        <p>Add schedule lines for each skill group and day combination.</p>
-                        <field name="line_ids">
-                            <list editable="bottom">
+                    <group string="Select Templates to Schedule">
+                        <p>Select which templates to generate session occurrences for. All templates are shown as read-only. To create or edit templates, use the Session Templates menu.</p>
+                        <field name="line_ids" nolabel="1">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="template_id" column_invisible="1"/>
+                                <field name="selected" widget="boolean_toggle"/>
                                 <field name="skill_group_id"/>
                                 <field name="day_of_week"/>
                                 <field name="start_time" widget="float_time"/>
@@ -20,9 +22,7 @@
                                 <field name="session_type"/>
                                 <field name="court_ids" widget="many2many_tags"/>
                                 <field name="coach_id"/>
-                                <field name="has_followup"/>
-                                <field name="followup_duration" optional="hide"/>
-                                <field name="followup_session_type" optional="hide"/>
+                                <field name="occurrence_count" string="Already Scheduled"/>
                             </list>
                         </field>
                     </group>
