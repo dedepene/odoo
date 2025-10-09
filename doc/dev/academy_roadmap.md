@@ -140,10 +140,11 @@ Features:
 
 ### 6.3 `academy_attendance`
 Features:
-- Attendance states: expected, present, abs_notified, abs_unnotified.
-- Automatic creation for each (session, player) at session confirmation.
-- Guardian portal absence request converts expected → abs_notified if submitted prior cutoff.
-- Check-in methods: (a) Coach list view action, (b) QR kiosk (per-session token endpoint), (c) Optional PIN for elevated player user.
+- **Check-in driven model**: Attendance records created ONLY by actual check-ins (not pre-generated).
+- Attendance state: 'present' (checked in).
+- Absence requests: Separate notification model (does not create attendance records).
+- Check-in methods: (a) Kiosk/tablet self-service (primary), (b) Coach supplemental check-in (mobile), (c) Optional PIN for elevated player user (future).
+- Billing integration: Only checked-in players (with attendance records) are billed.
 
 ### 6.4 `academy_billing`
 Features:
@@ -364,9 +365,10 @@ Schedule:
 - [x] Suspension handling
 
 Attendance:
-- [ ] Attendance model & generation
-- [ ] Absence request flow
-- [ ] QR endpoint & token security
+- [ ] Check-in driven attendance model (no pre-generation)
+- [ ] Absence request portal form (guardian notification)
+- [ ] Kiosk/tablet check-in interface (player self-service)
+- [ ] Coach supplemental check-in (mobile interface)
 
 Billing & Consumables:
 - [ ] Billing item pipeline
