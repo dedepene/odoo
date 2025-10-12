@@ -23,12 +23,3 @@
      2. Navigates to "My Kids" and selects the child.
      3. Clicks on "Report Absence" for the upcoming session.
      4. Fills out the absence form and submits.
-
-   ## Wireframes
-   ![Wireframe Example](path/to/wireframe.png)
-   ```
-
-5. **Commit Changes**:
-   - After creating the folder and documentation, commit the changes to your version control system (if applicable).
-
-By following these steps, you will have a structured documentation folder that details the information architecture of the website portal from the guardian's perspective.

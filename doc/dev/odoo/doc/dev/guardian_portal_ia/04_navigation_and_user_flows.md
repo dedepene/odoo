@@ -7,6 +7,7 @@ This document outlines the information architecture of the website portal from t
 - **Home**
   - Overview of the academy
   - Announcements and updates
+  - the next upcoming session summary with an option to report absence
 
 - **My Kids**
   - List of children enrolled
