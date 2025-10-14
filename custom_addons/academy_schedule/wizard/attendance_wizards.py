@@ -99,7 +99,92 @@ class AttendanceConfirmationWizard(models.TransientModel):
         compute='_compute_confirmation_message',
         store=False
     )
+    
+    # Walk-in player fields
+    walkin_player_id = fields.Many2one(
+        'academy.player',
+        string='Add Walk-In Player',
+        domain=[('active', '=', True)],
+        help='Search and select a player to add as walk-in'
+    )
+    
+    walkin_reason = fields.Selection(
+        [
+            ('trial', 'Trial (Free)'),
+            ('makeup', 'Makeup Session'),
+            ('advancement', 'Skill Level Advancement'),
+            ('other', 'Other'),
+        ],
+        string='Walk-In Reason',
+        default='makeup',
+        help='Reason for walk-in affects pricing: Trial is free, others are normal price'
+    )
+    
+    walkin_ids = fields.One2many(
+        'academy.attendance.confirmation.wizard.walkin',
+        'wizard_id',
+        string='Walk-In Players',
+        help='Players added as walk-ins for this session'
+    )
+    
+    walkin_count = fields.Integer(
+        string='Walk-Ins',
+        compute='_compute_counts',
+        store=False
+    )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Override create to filter out invalid walk-in records."""
+        for vals in vals_list:
+            # Clean up walk-in commands - remove any without player_id
+            if 'walkin_ids' in vals and vals['walkin_ids']:
+                cleaned_commands = []
+                for cmd in vals['walkin_ids']:
+                    # cmd is a tuple like (0, 0, {dict}) or (4, id) or (6, 0, [ids])
+                    if cmd[0] == 0 and len(cmd) >= 3:  # Create command
+                        # Only keep if it has a player_id
+                        if cmd[2].get('player_id'):
+                            cleaned_commands.append(cmd)
+                    else:
+                        cleaned_commands.append(cmd)
+                vals['walkin_ids'] = cleaned_commands
+        return super().create(vals_list)
+    
+    def write(self, vals):
+        """Override write to filter out invalid walk-in records BEFORE writing."""
+        # Filter walk-in commands BEFORE calling super()
+        if 'walkin_ids' in vals and vals['walkin_ids']:
+            cleaned_commands = []
+            for cmd in vals['walkin_ids']:
+                # cmd is a tuple like (0, 0, {dict}) or (4, id) or (6, 0, [ids])
+                if cmd[0] == 0 and len(cmd) >= 3:  # Create command
+                    # Only keep if it has a player_id
+                    if cmd[2].get('player_id'):
+                        cleaned_commands.append(cmd)
+                else:
+                    cleaned_commands.append(cmd)
+            vals['walkin_ids'] = cleaned_commands
+        
+        # Call super with filtered vals
+        result = super().write(vals)
+        
+        # After write, clean up orphaned walk-in players from present_player_ids
+        for wizard in self:
+            # Get current walk-in player IDs
+            walkin_player_ids = set(wizard.walkin_ids.mapped('player_id').ids) if wizard.walkin_ids else set()
+            registered_ids = set(wizard.registered_player_ids.ids)
+            present_ids = set(wizard.present_player_ids.ids)
+            
+            # Orphaned players = present but not registered and not in walk-ins
+            orphaned_ids = present_ids - registered_ids - walkin_player_ids
+            
+            if orphaned_ids:
+                # Remove orphaned players from present_player_ids
+                wizard.present_player_ids = [(3, pid) for pid in orphaned_ids]
+        
+        return result
+    
     @api.model
     def default_get(self, fields_list):
         """Pre-populate present players with all registered players."""
@@ -115,23 +200,35 @@ class AttendanceConfirmationWizard(models.TransientModel):
         
         return res
 
-    @api.depends('registered_player_ids', 'present_player_ids', 'absence_request_ids')
+    @api.depends('registered_player_ids', 'present_player_ids', 'absence_request_ids', 'walkin_ids')
     def _compute_counts(self):
         """Calculate attendance counts."""
         for wizard in self:
             wizard.total_count = len(wizard.registered_player_ids)
             wizard.present_count = len(wizard.present_player_ids)
             wizard.pre_reported_count = len(wizard.absence_request_ids)
+            wizard.walkin_count = len(wizard.walkin_ids)
             
             # Absent = registered - present (excluding pre-reported)
             absent_players = wizard.registered_player_ids - wizard.present_player_ids
             absence_player_ids = wizard.absence_request_ids.mapped('player_id')
             wizard.absent_count = len(absent_players - absence_player_ids)
 
-    @api.depends('present_count', 'absent_count', 'pre_reported_count', 'total_count')
+    @api.depends('present_count', 'absent_count', 'pre_reported_count', 'total_count', 'walkin_count')
     def _compute_confirmation_message(self):
         """Generate confirmation summary message."""
         for wizard in self:
+            walkin_row = ""
+            if wizard.walkin_count > 0:
+                walkin_row = f"""
+                        <tr>
+                            <td><strong>Walk-ins:</strong></td>
+                            <td style="text-align: right; color: #17a2b8;">
+                                {wizard.walkin_count} players
+                            </td>
+                        </tr>
+                """
+            
             wizard.confirmation_message = f"""
                 <div style="padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
                     <h4 style="margin-top: 0;">Attendance Summary</h4>
@@ -142,6 +239,7 @@ class AttendanceConfirmationWizard(models.TransientModel):
                                 <strong>{wizard.present_count}</strong> players
                             </td>
                         </tr>
+                        {walkin_row}
                         <tr>
                             <td><strong>Absent (unreported):</strong></td>
                             <td style="text-align: right; color: #dc3545;">
@@ -167,6 +265,43 @@ class AttendanceConfirmationWizard(models.TransientModel):
                 </div>
             """
 
+    @api.onchange('walkin_player_id', 'walkin_reason')
+    def _onchange_walkin_player(self):
+        """Add selected player to walk-ins list when player selected."""
+        if not self.walkin_player_id:
+            return
+        
+        # Check if player is already in registered roster
+        if self.walkin_player_id in self.registered_player_ids:
+            return {
+                'warning': {
+                    'title': 'Player Already Registered',
+                    'message': f'{self.walkin_player_id.name} is already in the session roster!'
+                }
+            }
+        
+        # Check if player already added as walk-in
+        if self.walkin_player_id.id in self.walkin_ids.mapped('player_id').ids:
+            return {
+                'warning': {
+                    'title': 'Player Already Added',
+                    'message': f'{self.walkin_player_id.name} has already been added as a walk-in!'
+                }
+            }
+        
+        # Add to walk-ins list
+        self.walkin_ids = [(0, 0, {
+            'player_id': self.walkin_player_id.id,
+            'reason': self.walkin_reason or 'makeup',
+        })]
+        
+        # Add to present players list (auto-mark as present)
+        self.present_player_ids = [(4, self.walkin_player_id.id)]
+        
+        # Clear the selection field for next entry
+        self.walkin_player_id = False
+        # Note: Keep walkin_reason as-is for next entry
+
     def action_confirm(self):
         """Confirm attendance and create attendance records."""
         self.ensure_one()
@@ -178,19 +313,33 @@ class AttendanceConfirmationWizard(models.TransientModel):
                 'consider cancelling the session instead.'
             )
         
+        # Create participant records for walk-ins
+        for walkin in self.walkin_ids:
+            self.env['academy.session.participant'].create({
+                'session_id': self.session_id.id,
+                'player_id': walkin.player_id.id,
+                'is_walkin': True,
+                'walkin_reason': walkin.reason,
+                'added_by_id': self.env.user.id,
+            })
+        
+        # Refresh session cache to see newly created participants
+        self.session_id.invalidate_recordset(['participant_ids'])
+        
         # Process attendance confirmation
         result = self.session_id.process_attendance_confirmation(
             self.present_player_ids.ids
         )
         
         # Return success message with summary
+        walkin_msg = f" (including {len(self.walkin_ids)} walk-ins)" if self.walkin_ids else ""
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Attendance Confirmed!',
                 'message': (
-                    f"✅ {result['present_count']} of {result['total_count']} players present. "
+                    f"✅ {result['present_count']} of {result['total_count']} players present{walkin_msg}. "
                     f"Session ready for billing."
                 ),
                 'type': 'success',
@@ -383,3 +532,44 @@ class AttendanceWalkinWizard(models.TransientModel):
     def action_cancel(self):
         """Cancel wizard without adding player."""
         return {'type': 'ir.actions.act_window_close'}
+
+
+class AttendanceConfirmationWizardWalkin(models.TransientModel):
+    """Line model for walk-in players in attendance confirmation wizard."""
+    
+    _name = 'academy.attendance.confirmation.wizard.walkin'
+    _description = 'Walk-In Player Line'
+    _rec_name = 'player_id'
+    
+    wizard_id = fields.Many2one(
+        'academy.attendance.confirmation.wizard',
+        string='Wizard',
+        required=True,
+        ondelete='cascade'
+    )
+    
+    player_id = fields.Many2one(
+        'academy.player',
+        string='Player',
+        required=True,
+        readonly=True
+    )
+    
+    reason = fields.Selection(
+        [
+            ('trial', 'Trial (Free)'),
+            ('makeup', 'Makeup Session'),
+            ('advancement', 'Skill Level Advancement'),
+            ('other', 'Other'),
+        ],
+        string='Reason',
+        required=True,
+        readonly=True
+    )
+    
+    skill_group_id = fields.Many2one(
+        'academy.skill.group',
+        string='Skill Group',
+        related='player_id.skill_group_id',
+        readonly=True
+    )

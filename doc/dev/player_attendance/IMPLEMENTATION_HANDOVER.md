@@ -219,41 +219,59 @@ participant_ids = fields.One2many('academy.session.participant', 'session_id')
 
 **View**: `custom_addons/academy_schedule/views/attendance_wizard_views.xml`
 
+**Recent Update (Oct 14, 2025)**: Walk-in functionality integrated into main attendance wizard.
+
 ---
 
-### 2. Walk-In Player Wizard
-**Model**: `academy.attendance.walkin.wizard`
-**File**: `custom_addons/academy_schedule/wizard/attendance_wizards.py` (lines 201-379)
+### 2. Walk-In Player Addition (Integrated)
+**Implementation**: Integrated into `academy.attendance.confirmation.wizard`
+**File**: `custom_addons/academy_schedule/wizard/attendance_wizards.py`
 
-**Purpose**: Add unregistered academy players to session (trials, makeups, advancement).
+**Purpose**: Add unregistered academy players to session (trials, makeups, advancement) directly within the attendance confirmation dialog.
 
-**Fields**:
-- `session_id` - Session (readonly)
-- `player_id` - Player to add (search field)
-- `walkin_reason` - Trial, makeup, advancement, other (required)
-- `walkin_reason_note` - Additional notes
-- `skill_group_mismatch` - Computed warning if player's group differs from session
+**New Fields Added to Attendance Wizard**:
+- `walkin_player_id` - Searchable player selection (Many2one)
+- `walkin_reason` - Trial, makeup, advancement, other (Selection)
+- `walkin_ids` - List of added walk-ins (One2many to `academy.attendance.confirmation.wizard.walkin`)
+- `walkin_count` - Number of walk-ins (computed)
+
+**Walk-In Line Model**: `academy.attendance.confirmation.wizard.walkin`
+- `wizard_id` - Parent wizard reference
+- `player_id` - Selected player
+- `reason` - Walk-in reason (trial/makeup/advancement/other)
+- `skill_group_id` - Related from player (for display)
 
 **Workflow**:
-1. Coach clicks "Add Walk-In Player" button during attendance confirmation
-2. Searches for player by name/code
-3. Wizard displays player info and skill group mismatch warning if applicable
-4. Coach selects reason (trial/makeup/advancement/other)
-5. Clicks "Add & Mark Present"
-6. System creates:
-   - `academy.session.participant` record (is_walkin=True)
-   - `academy.attendance` record (state='present', is_walkin=True)
-   - Chatter message documenting walk-in addition
+1. Coach opens "Confirm Attendance" wizard
+2. In **Walk-In Players** section, types to search for player
+   - Players displayed as: **[Skill Group] Player Name**
+   - Duplicates shown as: **[Skill Group] Player Name (Guardian Name)**
+3. Selects player from dropdown
+4. Chooses reason (defaults to "makeup")
+5. Player automatically added to walk-ins list and marked present
+6. Coach can repeat for multiple walk-ins
+7. Clicks "Confirm Attendance" - system creates:
+   - `academy.session.participant` records for each walk-in (is_walkin=True)
+   - `academy.attendance` records for all present players including walk-ins
+
+**Player Display Format** (Custom `name_get` on `academy.player`):
+```python
+# Normal: [Оранжеви] Далия Величкова
+# Duplicate: [Оранжеви] Иван Петров (Мария Петрова)
+```
 
 **Validation**:
-- Player must exist in academy (cannot create new)
-- Player cannot already be in session roster
-- Prevents duplicate additions
+- Player must exist in academy (searchable dropdown, no create)
+- Player cannot already be in session roster (warning shown)
+- Prevents duplicate walk-in additions (warning shown)
 
-**Key Method**:
-- `action_add_player()` - Creates participant and attendance records, posts chatter
+**Key Methods**:
+- `_onchange_walkin_player()` - Adds player to walk-ins list on selection
+- `action_confirm()` - Creates participant records before processing attendance
 
 **View**: `custom_addons/academy_schedule/views/attendance_wizard_views.xml`
+
+**Removed**: Standalone `academy.attendance.walkin.wizard` wizard (deprecated)
 
 ---
 
@@ -387,44 +405,60 @@ summary = model.generate_billing_items(date_from='2025-09-01', date_to='2025-09-
    ├─> Wizard opens with prepopulated roster
    ├─> All players checked (☑️) by default
    ├─> Pre-reported absences displayed separately
+   ├─> Walk-In Players section available for adding non-registered players
    └─> Coach unchecks absent players (❌)
 
-4. Coach clicks "Confirm Attendance" button
+4. Coach adds walk-in players (optional):
+   ├─> In "Walk-In Players" section, search for player
+   ├─> Player display: [Skill Group] Name (Guardian if duplicate)
+   ├─> Select player from dropdown
+   ├─> Choose reason: trial (free) / makeup / advancement / other
+   ├─> Player added to walk-ins list
+   └─> Player automatically marked present (checked)
+
+5. Coach clicks "Confirm Attendance" button
    ├─> Validation: At least one player present
    ├─> ⚠️ **TESTING MODE**: Time window validation disabled (normally 15 min before to 30 min after)
-   └─> System creates attendance records ONLY for checked players
+   ├─> System creates participant records for walk-ins
+   └─> System creates attendance records for ALL present players (registered + walk-ins)
 
-5. Session attendance_status changes to 'confirmed'
-   ├─> Chatter message: "Attendance confirmed by Coach. X of Y players present."
+6. Session attendance_status changes to 'confirmed'
+   ├─> Chatter message: "Attendance confirmed by Coach. X of Y players present (including Z walk-ins)."
    └─> Ready for billing
 
-6. End of month: Billing cron runs
+7. End of month: Billing cron runs
    ├─> Queries confirmed sessions, unbilled attendance
    ├─> Creates billing items for each attendance record
+   ├─> Walk-ins billed based on reason: trial=$0, others=normal price
    └─> Groups by primary guardian for invoicing
 ```
 
-### Walk-In Player Flow
+### Walk-In Player Flow (Integrated)
 
 ```
 1. Unregistered player shows up at session
-   └─> Coach clicks "Add Walk-In Player" button
+   └─> Coach opens "Confirm Attendance" wizard
 
-2. Walk-in wizard opens
-   ├─> Coach searches for player by name/code
-   └─> System filters to academy players only
+2. In "Walk-In Players" section:
+   ├─> Coach types to search for player (e.g. "Дал")
+   ├─> Dropdown shows: [Skill Group] Player Name
+   └─> If duplicates: [Skill Group] Player Name (Guardian Name)
 
-3. Coach selects player
-   ├─> System displays player's skill group
-   ├─> Warning if different from session group
-   └─> Coach selects reason (trial/makeup/advancement/other)
+3. Coach selects player from dropdown
+   ├─> Selects reason: trial (free) / makeup / advancement / other
+   └─> Player automatically added to walk-ins list
 
-4. Coach clicks "Add & Mark Present"
-   ├─> System creates academy.session.participant (is_walkin=True)
-   ├─> System creates academy.attendance (state='present', is_walkin=True)
-   └─> Chatter message documents walk-in addition
+4. Player marked present automatically
+   ├─> Appears in walk-ins list with skill group and reason
+   ├─> Also included in present_player_ids (cannot be unchecked)
+   └─> Can be removed from walk-ins list (delete button) before confirming
 
-5. Player appears in attendance roster with walk-in icon (🚶)
+5. Coach confirms attendance
+   ├─> System creates participant record (is_walkin=True, walkin_reason=reason)
+   ├─> System creates attendance record (state='present', is_walkin=True)
+   └─> Walk-in included in present count
+
+6. Walk-in appears in attendance records with walk-in flag (🚶)
    └─> Flagged for billing review (trials = free, others = normal price)
 ```
 
@@ -507,9 +541,22 @@ Scenario 4: No-show (not marked either way)
 8. ✅ Attempt to confirm again → expect error
 
 #### B. Walk-In Player Addition
-1. ✅ During attendance confirmation, click "Add Walk-In Player"
-2. ✅ Search for player NOT in session's skill group
-3. ✅ Select player → verify skill group mismatch warning
+1. ✅ During attendance confirmation, in **Walk-In Players** section:
+2. ✅ Type to search for player (e.g. "Дал" → finds Далия)
+3. ✅ Verify player display format: **[Skill Group] Player Name**
+4. ✅ Select player from dropdown
+5. ✅ Choose walk-in reason (trial/makeup/advancement/other)
+6. ✅ Verify player appears in walk-ins list
+7. ✅ Verify player automatically added to present players (checked)
+8. ✅ Add another walk-in player
+9. ✅ Remove a walk-in from list (delete button)
+10. ✅ Confirm attendance
+11. ✅ Verify:
+   - Participant records created for walk-ins (is_walkin=True)
+   - Attendance records include walk-ins
+   - Walkin_count shown in confirmation summary
+12. ✅ Try to add same player twice → expect warning
+13. ✅ Try to add registered player as walk-in → expect warning
 4. ✅ Choose reason: "Skill Level Advancement"
 5. ✅ Add player
 6. ✅ Verify:

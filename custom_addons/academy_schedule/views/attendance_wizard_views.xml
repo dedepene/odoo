@@ -36,6 +36,31 @@
                         </list>
                     </field>
                     
+                    <separator string="Walk-In Players"/>
+                    <p class="text-muted">
+                        Add players who weren't registered for this session but attended.
+                    </p>
+                    <group>
+                        <group>
+                            <field name="walkin_player_id" placeholder="Search for player..." 
+                                   options="{'no_create': True, 'no_open': True}"
+                                   help="Type player name to search. Players are grouped by skill level."/>
+                        </group>
+                        <group>
+                            <field name="walkin_reason" 
+                                   invisible="not walkin_player_id"
+                                   help="Reason affects billing: Trial is free, others are normal price"/>
+                        </group>
+                    </group>
+                    <field name="walkin_ids" nolabel="1" invisible="walkin_count == 0">
+                        <list create="false" edit="false" delete="true">
+                            <field name="player_id"/>
+                            <field name="skill_group_id"/>
+                            <field name="reason"/>
+                        </list>
+                    </field>
+                    <field name="walkin_count" invisible="1"/>
+                    
                     <separator string="Pre-Reported Absences" invisible="pre_reported_count == 0"/>
                     <p class="text-muted" invisible="pre_reported_count == 0">
                         These players reported absence beforehand. They are excluded from the roster above.

@@ -56,6 +56,35 @@ class AcademyPlayer(models.Model):
         ('academy_player_partner_unique', 'unique(partner_id)', 'A player already exists for this contact.'),
     ]
 
+    def name_get(self):
+        """
+        Custom name display for players with skill group prefix.
+        Format: [Skill Group] Player Name
+        If multiple players have same name and skill group, add primary guardian name.
+        """
+        result = []
+        for player in self:
+            skill_prefix = f"[{player.skill_group_id.name}]" if player.skill_group_id else ""
+            base_name = f"{skill_prefix} {player.name}".strip()
+            
+            # Check for duplicates (same name + skill group)
+            if player.skill_group_id:
+                duplicates = self.search([
+                    ('id', '!=', player.id),
+                    ('name', '=', player.name),
+                    ('skill_group_id', '=', player.skill_group_id.id),
+                    ('active', '=', True)
+                ])
+                
+                if duplicates:
+                    # Add primary guardian name in brackets
+                    guardian_name = player.primary_guardian_id.name if player.primary_guardian_id else "No Guardian"
+                    base_name = f"{base_name} ({guardian_name})"
+            
+            result.append((player.id, base_name))
+        
+        return result
+
     @api.depends('dob')
     def _compute_age(self):
         today = date.today()

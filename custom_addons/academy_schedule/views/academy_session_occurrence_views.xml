@@ -30,9 +30,6 @@
                             class="oe_highlight" 
                             invisible="state != 'planned' or attendance_status == 'confirmed' or is_individual"
                             help="Confirm which players attended this session"/>
-                    <button name="action_add_walkin_player" string="Add Walk-In Player" type="object" 
-                            invisible="state != 'planned' or is_individual"
-                            help="Add a player who wasn't registered for this session"/>
                     <button name="action_cancel" string="Cancel" type="object" 
                             class="btn btn-danger" invisible="state != 'planned'"/>
                     <button name="action_reactivate" string="Reactivate" type="object" 

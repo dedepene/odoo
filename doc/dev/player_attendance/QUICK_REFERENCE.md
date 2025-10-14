@@ -16,15 +16,22 @@
 **Important**: Only players with checkmarks (☑️) will be billed.
 
 ### Adding Walk-In Players
-1. During attendance confirmation, click **"Add Walk-In Player"**
-2. Search for the player by name
-3. Select the reason:
+1. During attendance confirmation, in the **"Walk-In Players"** section:
+2. Click the searchable dropdown field
+3. Type to search for the player (e.g. "Дал" finds "Далия")
+   - Players shown as: **[Skill Group] Player Name**
+   - If duplicates exist: **[Skill Group] Player Name (Guardian Name)**
+4. Select the player from the list
+5. Choose the reason:
    - **Trial** = Free session
    - **Makeup** = Normal price
    - **Advancement** = Normal price (skill level promotion)
    - **Other** = Normal price
-4. Click **"Add & Mark Present"**
-5. Player added to roster automatically
+6. Player automatically added to walk-ins list and marked present
+7. Repeat for additional walk-ins
+8. Click **"Confirm Attendance"** when done
+
+**Important**: Walk-in players are automatically marked present and cannot be unchecked.
 
 ---
 
