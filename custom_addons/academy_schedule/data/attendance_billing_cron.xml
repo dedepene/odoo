@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Cron job for monthly billing generation -->
+        <record id="cron_generate_monthly_billing" model="ir.cron">
+            <field name="name">Academy: Generate Monthly Billing from Attendance</field>
+            <field name="model_id" ref="model_academy_attendance_billing"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_generate_monthly_billing()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+            <field name="nextcall" eval="(DateTime.now() + relativedelta(day=1, hour=2, minute=0, second=0)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        </record>
+
+        <!-- System parameters for pricing configuration -->
+        <record id="config_group_tennis_price" model="ir.config_parameter">
+            <field name="key">academy.billing.group_tennis_price</field>
+            <field name="value">25.00</field>
+        </record>
+
+        <record id="config_group_physical_price" model="ir.config_parameter">
+            <field name="key">academy.billing.group_physical_price</field>
+            <field name="value">20.00</field>
+        </record>
+
+        <record id="config_individual_tennis_price" model="ir.config_parameter">
+            <field name="key">academy.billing.individual_tennis_price</field>
+            <field name="value">60.00</field>
+        </record>
+
+        <record id="config_individual_physical_price" model="ir.config_parameter">
+            <field name="key">academy.billing.individual_physical_price</field>
+            <field name="value">40.00</field>
+        </record>
+    </data>
+</odoo>

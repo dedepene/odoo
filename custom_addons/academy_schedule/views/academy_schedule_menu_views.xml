@@ -6,46 +6,27 @@
               parent="academy_core.menu_academy_root"
               sequence="20"/>
 
-    <!-- Configuration Submenu -->
-    <menuitem id="menu_academy_schedule_config"
-              name="Configuration"
+    <!-- Today's Sessions - Primary coach workspace (at the top) -->
+    <menuitem id="menu_academy_today_sessions"
+              name="Today's Sessions"
               parent="menu_academy_schedule_root"
-              sequence="100"/>
+              action="action_academy_today_sessions"
+              sequence="5"
+              groups="academy_core.group_academy_coach,academy_core.group_academy_head_coach,academy_core.group_academy_site_admin"/>
 
-    <!-- Courts -->
-    <menuitem id="menu_academy_court"
-              name="Courts"
-              parent="menu_academy_schedule_config"
-              action="action_academy_court"
-              sequence="10"/>
-
-    <!-- Seasons -->
-    <menuitem id="menu_academy_season"
-              name="Seasons"
+    <!-- All Sessions -->
+    <menuitem id="menu_academy_session_occurrence"
+              name="All Sessions"
               parent="menu_academy_schedule_root"
-              action="action_academy_season"
-              sequence="10"/>
-
-    <!-- Templates -->
-    <menuitem id="menu_academy_session_template"
-              name="Session Templates"
-              parent="menu_academy_schedule_root"
-              action="action_academy_session_template"
-              sequence="20"/>
+              action="action_academy_session_occurrence"
+              sequence="30"/>
 
     <!-- Suspensions -->
     <menuitem id="menu_academy_season_suspension"
               name="Suspensions"
               parent="menu_academy_schedule_root"
               action="action_academy_season_suspension"
-              sequence="25"/>
-
-    <!-- Sessions -->
-    <menuitem id="menu_academy_session_occurrence"
-              name="Sessions"
-              parent="menu_academy_schedule_root"
-              action="action_academy_session_occurrence"
-              sequence="30"/>
+              sequence="35"/>
 
     <!-- Absences -->
     <menuitem id="menu_academy_session_absence"
@@ -59,5 +40,18 @@
               name="Book Individual Session"
               parent="menu_academy_schedule_root"
               action="action_individual_session_wizard"
-              sequence="35"/>
+              sequence="45"/>
+
+    <!-- Configuration Submenu (under Scheduling) -->
+    <menuitem id="menu_academy_schedule_config"
+              name="Configuration"
+              parent="menu_academy_schedule_root"
+              sequence="100"/>
+
+    <!-- Courts -->
+    <menuitem id="menu_academy_court"
+              name="Courts"
+              parent="menu_academy_schedule_config"
+              action="action_academy_court"
+              sequence="10"/>
 </odoo>

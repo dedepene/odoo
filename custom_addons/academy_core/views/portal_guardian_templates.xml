@@ -1,0 +1,488 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Sessions View -->
+        <template id="portal_my_sessions" name="My Sessions">
+            <t t-call="portal.portal_layout">
+                <t t-set="breadcrumbs_searchbar" t-value="True"/>
+                <t t-call="portal.portal_searchbar">
+                    <t t-set="title">Sessions</t>
+                </t>
+
+                <div class="container mt-4">
+                    <!-- Success message if absence was reported -->
+                    <t t-if="request.params.get('absence_reported')">
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fa fa-check-circle me-2"/>Absence reported successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    </t>
+                    
+                    <!-- Success message if absence was cancelled -->
+                    <t t-if="request.params.get('absence_cancelled')">
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            <i class="fa fa-info-circle me-2"/>Absence cancelled successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    </t>
+
+                    <t t-if="not players">
+                        <div class="alert alert-warning">
+                            <i class="fa fa-info-circle me-2"/>No children are linked to your account.
+                        </div>
+                    </t>
+
+                    <t t-if="players">
+                        <!-- Tabs for Upcoming and Past -->
+                        <ul class="nav nav-tabs mb-4" id="sessionTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#upcoming" type="button" role="tab">
+                                    <i class="fa fa-calendar-plus me-1"/>Upcoming Sessions
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="past-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#past" type="button" role="tab">
+                                    <i class="fa fa-history me-1"/>Past Sessions
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="sessionTabsContent">
+                            <!-- Upcoming Sessions Tab -->
+                            <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+                                <t t-foreach="players" t-as="player">
+                                    <t t-set="occs" t-value="upcoming_by_player.get(player.id)"/>
+                                    <t t-if="occs">
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0"><t t-esc="player.name"/></h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Date</th>
+                                                                <th>Time</th>
+                                                                <th>Session</th>
+                                                                <th>Type</th>
+                                                                <th>Coach</th>
+                                                                <th>Action</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <t t-foreach="occs" t-as="o">
+                                                                <tr>
+                                                                    <td><span t-field="o.date"/></td>
+                                                                    <td>
+                                                                        <t t-if="o.start_datetime and o.end_datetime">
+                                                                            <span t-esc="o.start_datetime.strftime('%H:%M')"/> - 
+                                                                            <span t-esc="o.end_datetime.strftime('%H:%M')"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td><t t-esc="o.template_id.name or o.name"/></td>
+                                                                    <td>
+                                                                        <span class="badge bg-info">
+                                                                            <t t-if="'tennis' in o.session_type">Tennis</t>
+                                                                            <t t-elif="'physical' in o.session_type">Physical</t>
+                                                                            <t t-else="">Other</t>
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <t t-if="o.coach_id">
+                                                                            <t t-esc="o.coach_id.name"/>
+                                                                        </t>
+                                                                        <t t-else="">
+                                                                            <span class="text-muted">TBA</span>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td>
+                                                                        <!-- Check if absence exists for this session -->
+                                                                        <t t-set="player_absences" t-value="absences_by_player.get(player.id, {})"/>
+                                                                        <t t-set="existing_absence" t-value="player_absences.get(o.id)"/>
+                                                                        
+                                                                        <t t-if="existing_absence">
+                                                                            <!-- Show Cancel Absence button -->
+                                                                            <form action="/my/sessions/cancel_absence" method="post" style="display:inline;">
+                                                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                                                <input type="hidden" name="absence_id" t-att-value="existing_absence.id"/>
+                                                                                <input type="hidden" name="redirect" value="/my/sessions"/>
+                                                                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                                                    <i class="fa fa-times-circle me-1"/>Cancel Absence
+                                                                                </button>
+                                                                            </form>
+                                                                        </t>
+                                                                        <t t-else="">
+                                                                            <!-- Show Report Absence button -->
+                                                                            <button class="btn btn-sm btn-outline-danger" 
+                                                                                    data-bs-toggle="modal" 
+                                                                                    t-att-data-bs-target="'#absenceModal_' + str(o.id) + '_' + str(player.id)">
+                                                                                Report Absence
+                                                                            </button>
+                                                                        </t>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </t>
+                            </div>
+
+                            <!-- Past Sessions Tab -->
+                            <div class="tab-pane fade" id="past" role="tabpanel">
+                                <t t-foreach="players" t-as="player">
+                                    <t t-set="occs" t-value="past_by_player.get(player.id)"/>
+                                    <t t-if="occs">
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-secondary text-white">
+                                                <h5 class="mb-0"><t t-esc="player.name"/></h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Date</th>
+                                                                <th>Time</th>
+                                                                <th>Session</th>
+                                                                <th>Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <t t-foreach="occs" t-as="o">
+                                                                <tr>
+                                                                    <td><span t-field="o.date"/></td>
+                                                                    <td>
+                                                                        <t t-if="o.start_datetime and o.end_datetime">
+                                                                            <span t-esc="o.start_datetime.strftime('%H:%M')"/> - 
+                                                                            <span t-esc="o.end_datetime.strftime('%H:%M')"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td><t t-esc="o.template_id.name or o.name"/></td>
+                                                                    <td>
+                                                                        <t t-if="o.state == 'completed'">
+                                                                            <span class="badge bg-success">Completed</span>
+                                                                        </t>
+                                                                        <t t-elif="o.state == 'cancelled'">
+                                                                            <span class="badge bg-danger">Cancelled</span>
+                                                                        </t>
+                                                                        <t t-elif="o.state == 'suspended'">
+                                                                            <span class="badge bg-warning">Suspended</span>
+                                                                        </t>
+                                                                        <t t-else="">
+                                                                            <span class="badge bg-secondary"><t t-esc="o.state.title()"/></span>
+                                                                        </t>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+
+                <!-- Absence Modals for Upcoming Sessions -->
+                <t t-foreach="players" t-as="player">
+                    <t t-set="occs" t-value="upcoming_by_player.get(player.id)"/>
+                    <t t-if="occs">
+                        <t t-foreach="occs" t-as="o">
+                            <t t-call="academy_core.absence_modal">
+                                <t t-set="modal_id" t-value="'absenceModal_' + str(o.id) + '_' + str(player.id)"/>
+                                <t t-set="occurrence" t-value="o"/>
+                                <t t-set="player" t-value="player"/>
+                                <t t-set="redirect" t-value="'/my/sessions'"/>
+                            </t>
+                        </t>
+                    </t>
+                </t>
+            </t>
+        </template>
+
+        <!-- Billing View -->
+        <template id="portal_my_billing" name="My Billing">
+            <t t-call="portal.portal_layout">
+                <t t-set="breadcrumbs_searchbar" t-value="True"/>
+                <t t-call="portal.portal_searchbar">
+                    <t t-set="title">Billing</t>
+                </t>
+
+                <div class="container mt-4">
+                    <!-- Current Invoices (Unpaid) -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fa fa-exclamation-circle me-2"/>Current Invoices</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not current_invoices">
+                                <p class="text-muted">No outstanding invoices.</p>
+                            </t>
+                            <t t-if="current_invoices">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Date</th>
+                                                <th>Due Date</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="current_invoices" t-as="invoice">
+                                                <tr>
+                                                    <td><strong><t t-esc="invoice.name"/></strong></td>
+                                                    <td><span t-field="invoice.invoice_date"/></td>
+                                                    <td>
+                                                        <span t-field="invoice.invoice_date_due"/>
+                                                        <t t-if="invoice.invoice_date_due and invoice.invoice_date_due &lt; datetime.date.today()">
+                                                            <span class="badge bg-danger ms-1">Overdue</span>
+                                                        </t>
+                                                    </td>
+                                                    <td>
+                                                        <strong>
+                                                            <span t-field="invoice.amount_total" 
+                                                                  t-options='{"widget": "monetary", "display_currency": invoice.currency_id}'/>
+                                                        </strong>
+                                                    </td>
+                                                    <td>
+                                                        <t t-if="invoice.payment_state == 'not_paid'">
+                                                            <span class="badge bg-danger">Unpaid</span>
+                                                        </t>
+                                                        <t t-elif="invoice.payment_state == 'partial'">
+                                                            <span class="badge bg-warning">Partial</span>
+                                                        </t>
+                                                    </td>
+                                                    <td>
+                                                        <a t-attf-href="/my/invoices/#{invoice.id}" class="btn btn-sm btn-primary">
+                                                            <i class="fa fa-eye me-1"/>View
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Payment History (Paid Invoices) -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fa fa-check-circle me-2"/>Payment History</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not paid_invoices">
+                                <p class="text-muted">No payment history available.</p>
+                            </t>
+                            <t t-if="paid_invoices">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Date</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="paid_invoices" t-as="invoice">
+                                                <tr>
+                                                    <td><t t-esc="invoice.name"/></td>
+                                                    <td><span t-field="invoice.invoice_date"/></td>
+                                                    <td>
+                                                        <span t-field="invoice.amount_total" 
+                                                              t-options='{"widget": "monetary", "display_currency": invoice.currency_id}'/>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-success">Paid</span>
+                                                    </td>
+                                                    <td>
+                                                        <a t-attf-href="/my/invoices/#{invoice.id}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fa fa-eye me-1"/>View
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Billing Summary -->
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fa fa-info-circle me-2"/>Billing Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>For billing inquiries or payment assistance, please contact the academy office.</p>
+                            <p class="mb-0">
+                                <strong>Email:</strong> billing@academy.com<br/>
+                                <strong>Phone:</strong> (555) 123-4567
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </template>
+
+        <!-- Profile View -->
+        <template id="portal_my_profile" name="My Profile">
+            <t t-call="portal.portal_layout">
+                <t t-set="breadcrumbs_searchbar" t-value="True"/>
+                <t t-call="portal.portal_searchbar">
+                    <t t-set="title">My Profile</t>
+                </t>
+
+                <div class="container mt-4">
+                    <!-- Success message if profile was updated -->
+                    <t t-if="request.params.get('success')">
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fa fa-check-circle me-2"/>Profile updated successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    </t>
+
+                    <!-- Profile Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fa fa-user me-2"/>Guardian Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/my/profile/update" method="post" class="needs-validation">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="name" name="name" 
+                                               t-att-value="partner.name" required=""/>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               t-att-value="partner.email" required=""/>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="phone" class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="phone" name="phone" 
+                                               t-att-value="partner.phone or ''"/>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="mobile" class="form-label">Mobile</label>
+                                        <input type="tel" class="form-control" id="mobile" name="mobile" 
+                                               t-att-value="partner.mobile or ''"/>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="street" class="form-label">Street Address</label>
+                                    <input type="text" class="form-control" id="street" name="street" 
+                                           t-att-value="partner.street or ''"/>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="street2" class="form-label">Street Address 2</label>
+                                    <input type="text" class="form-control" id="street2" name="street2" 
+                                           t-att-value="partner.street2 or ''"/>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="city" class="form-label">City</label>
+                                        <input type="text" class="form-control" id="city" name="city" 
+                                               t-att-value="partner.city or ''"/>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="zip" class="form-label">Zip Code</label>
+                                        <input type="text" class="form-control" id="zip" name="zip" 
+                                               t-att-value="partner.zip or ''"/>
+                                    </div>
+                                </div>
+
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa fa-save me-1"/>Update Profile
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Linked Children -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fa fa-users me-2"/>Linked Children</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not players">
+                                <p class="text-muted">No children are linked to your account.</p>
+                            </t>
+                            <t t-if="players">
+                                <ul class="list-group">
+                                    <t t-foreach="players" t-as="player">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong><t t-esc="player.name"/></strong><br/>
+                                                <small class="text-muted">
+                                                    Skill Group: <t t-esc="player.skill_group_id.name"/> | 
+                                                    Age: <t t-esc="int(player.age_years)"/> years
+                                                </small>
+                                            </div>
+                                            <a t-attf-href="/my/kids/#{player.id}" class="btn btn-sm btn-outline-primary">
+                                                View Details
+                                            </a>
+                                        </li>
+                                    </t>
+                                </ul>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Account Settings -->
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fa fa-cog me-2"/>Account Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>To change your password or manage account security settings, please visit:</p>
+                            <a href="/web/session/account" class="btn btn-outline-secondary">
+                                <i class="fa fa-lock me-1"/>Account Security
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </template>
+
+        <!-- Hide default portal menu items for guardians -->
+        <template id="portal_my_home_guardian_only" name="Guardian Portal Home Override" inherit_id="portal.portal_my_home" priority="100">
+            <!-- Hide the default portal documents section for guardians -->
+            <xpath expr="//div[@class='o_portal_my_home']" position="attributes">
+                <attribute name="t-if">not request.env.user.has_group('academy_core.group_academy_guardian')</attribute>
+            </xpath>
+        </template>
+
+    </data>
+</odoo>

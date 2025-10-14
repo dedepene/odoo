@@ -33,8 +33,12 @@ Use this document to put together a roadmap and top-level design to modify this 
   - the lead coach's schedule/calendar should be available to the associated kids and their guardians in addition to the other coaches. However the schedule should not be available to kids or guradinans who are not assigned to this coach
   
 2. Attendance
-  - each player should be able to check into a training session in a frictionless manner. Maybe use the odoo employee attendance module with a kiosk? If we go with this each player should be set up as an employee i assume.
-  - each attendance should be added up for the monthly attendace figure and used as an invoice basis for players who are on a per-visit billing basis
+  - for each and every group session the attendance roster is generated automatically based on the players assigned to the group
+  - for individual sessions the attendance roster is generated based on the players assigned to the session
+  - a guardian reported absence should be recorded and reflected in the attendance roster for the particular session
+  - the coach will essentially look at the list and mark the absentees - those who remain on the list are marked as present and a corresponding attendance record is created
+  - the coach can write in (add to the session) any academy player - e.g. a orange level player who is not part of the green group but is attending the session for a trial or other reason
+  - each attendance should be added up for the total monthly attendance figure and used as an invoice basis for players who are on a per-visit billing basis i.e. a running total and a monthly total need to be kept for each player
   
 3. Billing
   - each guardian should receive a monthly invoice with services rendered from the tennis academy which is to include: practice sessions, bar/cafe consumables, pro shop purchases, extras

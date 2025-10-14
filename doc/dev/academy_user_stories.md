@@ -782,510 +782,855 @@ class AcademyAbsenceRequest(models.Model):
 
 ---
 
-## 3.2 Tablet/Kiosk Check-In at Court Entrance
+## 3.2 Coach Attendance Validation (Prepopulated Roster)
 
 ### 3.2.1 Purpose
-Provide frictionless self-service check-in for players arriving at the court, creating attendance records in real-time without manual staff intervention.
+Enable coaches to validate attendance at the start of each session using a prepopulated roster of all registered players, marking only absentees to finalize attendance records efficiently.
 
 ### 3.2.2 Actors
 | Role | Responsibility |
 |------|----------------|
-| Player | Taps their name on kiosk to check in |
-| System (Kiosk App) | Displays current session roster; creates attendance record on tap |
-| Database | Stores attendance record with check-in timestamp |
-| Coach | Views check-in status in real-time (optional) |
+| Coach | Views prepopulated roster; marks absentees; confirms attendance |
+| System | Generates attendance roster from session registrations; creates attendance records |
+| Database | Stores attendance records for present players only |
+| Guardian | Has optionally submitted absence request beforehand |
 
 ### 3.2.3 Preconditions
-- Tablet/kiosk set up at court entrance in full-screen mode
-- Network connectivity available
-- Session scheduled and active (within check-in window: 15 min before start to 15 min after end)
-- Players registered for session (via skill group or individual enrollment)
+- Coach authenticated (internal user with coach role)
+- Session scheduled with registered players (via skill group or individual enrollment)
+- Session start time reached or imminent (within 15 minutes)
+- Absence requests submitted by guardians (if any) are visible
+- Coach assigned to the session or has permission to validate
 
 ### 3.2.4 Triggers
-1. Player arrives at court entrance
-2. Kiosk displays current session(s) with player roster
-3. Player taps their name
+1. Coach opens Academy mobile/tablet app at session start time
+2. Navigates to **Today's Sessions** → selects current session
+3. System displays prepopulated attendance roster
+4. Coach reviews physical attendance and marks absentees
 
 ### 3.2.5 Happy Path Flow
-1. Tablet at court entrance runs kiosk web app (URL: `/academy/kiosk/checkin`)
-2. Kiosk displays current and upcoming sessions on nearby courts:
+1. Coach arrives at court before session start (e.g., "Зелени - Monday 15:00")
+2. Opens Academy app on mobile device/tablet
+3. Navigates to **academy** > **Scheduling** > **Today's Sessions** → taps current session
+4. System displays prepopulated attendance roster:
    ```
-   Academy Check-In
-   ════════════════════════════════════════
-   Court 1 • NOW: Зелени - Monday 15:00
-   13:00 - 15:00
-   
-   Tap your name to check in:
-   
-   [Стела Величкова    ]  Age 12
-   [Jordan Player       ]  Age 11
-   [Taylor Smith        ]  Age 13
-   ... (scrollable list)
-   ════════════════════════════════════════
-   ```
-3. Player taps their name (e.g., "Стела Величкова")
-4. System validates:
-   - Session within check-in window: PASS
-   - Player registered for session: PASS
-   - Player not already checked in: PASS
-5. System creates `academy.attendance` record:
-   - session_id = current session
-   - player_id = tapped player
-   - checkin_time = now
-   - state = 'present'
-   - checkin_method = 'kiosk'
-6. Confirmation screen displays (2 seconds):
-   ```
-   ✓ Checked In Successfully!
-   
-   Стела Величкова
    Зелени - Monday 15:00
-   13:05
+   Court 1 • 13:00 - 15:00
+   ═══════════════════════════════════
+   Registered Players: 12
    
-   Enjoy your session!
+   📋 Attendance Roster (Tap to mark absent)
+   ─────────────────────────────────────
+   ☑️ Стела Величкова       Age 12
+   ☑️ Jordan Player          Age 11
+   ☑️ Taylor Smith           Age 13
+   ☑️ Sam Anderson           Age 12
+   ☑️ Jamie Garcia           Age 10
+   ☑️ Drew Thompson          Age 11
+   ☑️ Casey Lee              Age 12
+   ☑️ Morgan Davis           Age 11
+   ☑️ Riley Brown            Age 13
+   ☑️ Avery Wilson           Age 12
+   ☑️ Parker Martinez        Age 11
+   
+   ───────────────────────────────────
+   📢 Pre-Reported Absences (1)
+   ─────────────────────────────────────
+   ❌ Chris Evans           Illness
+      (Reported by Parent at 10:30)
+   
+   ═══════════════════════════════════
+   [Add Walk-In Player] [Confirm Attendance]
    ```
-7. Screen auto-returns to player list
-8. If absence request exists for this player/session, system logs override (player showed up despite reported absence)
+5. Coach scans the court and sees Sam Anderson and Riley Brown are absent (no pre-reported absence)
+6. Coach taps **Sam Anderson** → checkbox changes to ❌ (marked absent)
+7. Coach taps **Riley Brown** → checkbox changes to ❌ (marked absent)
+8. Coach notices Casey Lee arrived late, keeps checkbox ☑️ (present)
+9. Coach taps **"Confirm Attendance"** button
+10. System processes:
+    - Creates `academy.attendance` records for all ☑️ checked players (10 records):
+      - state='present', marked_by_id=coach, confirmation_time=now
+    - Does NOT create attendance for ❌ unchecked players (Sam, Riley)
+    - Does NOT create attendance for pre-reported absence (Chris Evans)
+    - Posts chatter: "Attendance confirmed by Coach [Name]. 10 of 12 players present."
+11. Confirmation screen displays:
+    ```
+    ✅ Attendance Confirmed!
+    
+    Present: 10 players
+    Absent (unreported): 2 players
+    Pre-reported absences: 1 player
+    
+    Session ready for billing.
+    ```
+12. Coach can now proceed with training session
 
 ### 3.2.6 Alternative / Error Paths
 | Condition | Outcome |
 |-----------|---------|
-| Player already checked in | Show: "You're already checked in at [time]!" (idempotent, no error) |
-| Player taps wrong name by mistake | Display includes "Undo" button for 5 seconds to reverse check-in |
-| Session not within check-in window (>15 min before start) | Show: "Check-in opens 15 minutes before session start." |
-| Session ended >15 min ago | Session not displayed in active list |
-| Network interruption | Cache check-in locally, sync when connection restored (offline capability) |
-| Tablet frozen/crashed | Reloading page resumes normal operation (stateless kiosk) |
+| Coach tries to confirm before session start window | Warning: "Session hasn't started yet. Confirm attendance within 15 minutes of start time." |
+| Coach marks all players absent by mistake | Confirmation prompt: "Are you sure? All players marked absent. This is unusual." |
+| Coach tries to confirm after session already confirmed | Info: "Attendance already confirmed at [time]. Contact admin to adjust." |
+| Network interruption during confirmation | Cache selections; sync when reconnected; show "Pending sync" indicator |
+| Player not pre-registered but shows up | Coach uses **"Add Walk-In Player"** to add them (see section 3.3) |
+| Coach closes app before confirming | Changes not saved; roster resets on next open (until confirmed) |
 
 ### 3.2.7 Postconditions
-- Attendance record created with state='present', method='kiosk'
-- Session's attendee count increments (one-to-many relationship)
-- If absence request exists, it's marked as overridden (player attended anyway)
-- Coach can view real-time check-in status on their device
-- Player name moves to "checked in" section if coach is viewing simultaneously
+- Attendance records created ONLY for players marked present (checked boxes)
+- NO attendance records for absent players (unchecked) or pre-reported absences
+- Session attendance_status changes from 'pending' to 'confirmed'
+- Absent players (without pre-reported absence) may trigger follow-up alerts to guardians
+- Billing pipeline will process only present players (those with attendance records)
+- Chatter audit trail documents confirmation with timestamp and coach
 
 ### 3.2.8 Data Entities & Fields
-| Entity | Fields Created |
-|--------|----------------|
-| academy.attendance | id, session_id, player_id, checkin_time, state='present', checkin_method='kiosk' |
-| academy.session.occurrence | attendance_ids (One2many), attendance_count (computed) |
-| academy.absence.request | overridden_by_checkin (Boolean) - optional field to track |
+| Entity | Fields Created/Updated |
+|--------|------------------------|
+| academy.attendance | session_id, player_id, state='present', marked_by_id (coach), confirmation_time |
+| academy.session.occurrence | attendance_status='confirmed', attendance_count (computed from records) |
+| academy.absence.request | Referenced for display; not modified by coach action |
 
 ### 3.2.9 Security & Permissions
-- Kiosk endpoint: Public access (no authentication) but restricted to valid sessions only
-- IP whitelist: Optional restrict kiosk URL to tablet's IP range (academy network)
-- Rate limiting: Prevent spam (max 1 check-in per player per minute)
-- Session validation: Check-in only allowed for sessions in active window
+- Action visible to: Coaches assigned to session, head coaches, site admin
+- Record rules: Coach can only confirm attendance for sessions where session.coach_id = user OR user in group_head_coach
+- Cannot confirm attendance for other coaches' sessions (unless head coach/admin override)
+- Confirmation window: 15 minutes before to 30 minutes after session start (configurable)
 
 ### 3.2.10 Business Rules / Validation
-- Check-in window: `session.date_start - 15 min` to `session.date_end + 15 min`
-- Player must be registered for session (either via skill_group_id match or explicit participant link)
-- Idempotent: Tapping same player multiple times shows "already checked in" (doesn't create duplicate)
-- Attendance overrides absence: If absence request exists, check-in takes precedence (player showed up)
+- **Prepopulated roster**: System generates list from skill_group players (group sessions) or participant_ids (individual sessions)
+- **Default all present**: All players start with ☑️ (checked); coach marks ❌ (absent) only
+- **No attendance record for absences**: Unchecked players and pre-reported absences get NO attendance record
+- **Confirmation required**: Until coach confirms, roster can be edited; after confirmation, requires admin override
+- **Confirmation window**: Can confirm from 15 min before session start to 30 min after start (grace period for late arrivals)
+- **Walk-in additions**: Coach can add unregistered players via separate action (creates ad-hoc participation)
+- **Absence request integration**: Pre-reported absences displayed separately; automatically excluded from billing
 
 ### 3.2.11 Auditing
-- Optional chatter message on session (if verbose logging enabled): `Kiosk check-in: {player_name} at {timestamp}`
-- System log (INFO): `[KIOSK-CHECKIN] Player {player_id} checked in for session {session_id} at {time}`
-- Dashboard metric: Check-in method distribution (kiosk vs coach), average check-in time vs session start
+- Chatter message on session: "Attendance confirmed by {coach_name} at {timestamp}. {present_count} of {total_count} players present."
+- Individual attendance records log: created_by=coach, create_date=confirmation_time
+- Metric tracking: Average confirmation time (how long after session start), no-show rate (unreported absences)
 
 ### 3.2.12 UX Wireframe (Textual)
 ```
-[Full-Screen Kiosk Display]
+[Mobile/Tablet App - Coach View]
 
-        Academy Check-In
-════════════════════════════════════════════
-Court 1 • NOW
-Зелени - Monday 15:00
-13:00 - 15:00
+═══════════════════════════════════════
+📅 Зелени - Monday 15:00
+🎾 Court 1 • 13:00 - 15:00
+👤 Coach: Ivan Petrov
+───────────────────────────────────────
+Status: Ready to Confirm
+Registered: 12 players
+═══════════════════════════════════════
 
-Tap your name to check in:
+📋 ATTENDANCE ROSTER
+Tap players who are ABSENT:
 
-┌────────────────────────────┐
-│ Стела Величкова       12 y │
-└────────────────────────────┘
-┌────────────────────────────┐
-│ Jordan Player         11 y │
-└────────────────────────────┘
-┌────────────────────────────┐
-│ Taylor Smith          13 y │
-└────────────────────────────┘
-... (scroll for more)
+☑️  Стела Величкова          Age 12
+☑️  Jordan Player             Age 11
+☑️  Taylor Smith              Age 13
+❌  Sam Anderson              Age 12
+☑️  Jamie Garcia              Age 10
+❌  Riley Brown               Age 13
+☑️  Drew Thompson             Age 11
+☑️  Casey Lee                 Age 12
+☑️  Morgan Davis              Age 11
+☑️  Avery Wilson              Age 12
+☑️  Parker Martinez           Age 11
 
-────────────────────────────────────────────
-Next: Court 2 • 15:00
-Advanced - Monday 17:00
-════════════════════════════════════════════
+─────────────────────────────────────
 
-[Confirmation Screen - 2 second display]
+📢 PRE-REPORTED ABSENCES (1)
 
-        ✓ Checked In!
-════════════════════════════════════════════
+❌  Chris Evans               Age 12
+    Reason: Illness
+    Reported: 10/13 10:30 by Parent
 
-     Стела Величкова
-     
-  Зелени - Monday 15:00
-       13:05
-       
-  Enjoy your session!
-  
-════════════════════════════════════════════
+═══════════════════════════════════════
+
+[Add Walk-In Player]  [Confirm Attendance]
+
+═══════════════════════════════════════
+```
+
+**Confirmation Dialog:**
+```
+┌──────────────────────────────────┐
+│  Confirm Attendance?             │
+├──────────────────────────────────┤
+│  Present: 10 players             │
+│  Absent (unreported): 2 players  │
+│  Pre-reported absences: 1        │
+│                                  │
+│  This action cannot be undone.   │
+│  Contact admin to adjust later.  │
+│                                  │
+│  [Cancel]  [Confirm & Continue]  │
+└──────────────────────────────────┘
 ```
 
 ### 3.2.13 Sequence (Textual)
 ```
-Player → Kiosk: Arrive at court entrance
-Kiosk → System: Fetch current sessions within check-in window
-System → Kiosk: Return session list with registered players
-Kiosk: Display player roster for current session
-Player → Kiosk: Tap name
-Kiosk → System: POST check-in request (session_id, player_id)
-System → Validation: Check window, registration, not duplicate
-System → Attendance: Create record (session, player, time, method='kiosk')
-System → Kiosk: Return success with confirmation data
-Kiosk: Display "Checked In!" confirmation (2 sec)
-Kiosk: Auto-return to player list
-System → Coach (if viewing): Push notification or refresh attendee list
+Coach → App: Navigate to Today's Sessions
+App → System: Fetch coach's sessions for today
+System → App: Return session list
+Coach → App: Select current session
+App → System: Fetch session data (registered players, absence requests)
+System → Session: Query skill_group players OR participant_ids
+System → AbsenceRequest: Query pre-reported absences for session
+System → App: Return prepopulated roster (all checked by default) + absence list
+App: Display attendance interface with checkboxes
+Coach → App: Tap Sam Anderson (mark absent)
+App: Update UI (checkbox → ❌)
+Coach → App: Tap Riley Brown (mark absent)
+App: Update UI (checkbox → ❌)
+Coach → App: Tap "Confirm Attendance"
+App → System: POST confirmation (session_id, present_player_ids=[...])
+System → Validation: Check confirmation window, session not already confirmed
+System → Attendance: Create records ONLY for checked players (state='present')
+System → Session: Update attendance_status='confirmed', attendance_count=10
+System → Chatter: Post confirmation message
+System → App: Return success with summary
+App: Display confirmation screen (Present: 10, Absent: 2, Pre-reported: 1)
 ```
 
 ### 3.2.14 Pseudo Code
 ```python
-class AcademyKioskController(http.Controller):
-    @http.route('/academy/kiosk/checkin', type='http', auth='public', website=True)
-    def kiosk_display(self, **kwargs):
-        # Fetch active sessions (within check-in window)
-        now = fields.Datetime.now()
-        window_minutes = 15
-        sessions = request.env['academy.session.occurrence'].sudo().search([
-            ('date_start', '<=', now + timedelta(minutes=window_minutes)),
-            ('date_end', '>=', now - timedelta(minutes=window_minutes)),
-            ('state', '=', 'planned')
-        ])
+class AcademySessionOccurrence(models.Model):
+    _name = 'academy.session.occurrence'
+    
+    attendance_status = fields.Selection([
+        ('pending', 'Pending Confirmation'),
+        ('confirmed', 'Confirmed'),
+        ('completed', 'Completed')
+    ], default='pending')
+    
+    def action_confirm_attendance(self, present_player_ids):
+        """Coach confirms attendance by providing list of present players."""
+        self.ensure_one()
         
-        # Prepare session data with registered players
-        session_data = []
-        for session in sessions:
-            players = self._get_registered_players(session)
-            checked_in_ids = session.attendance_ids.mapped('player_id').ids
-            session_data.append({
-                'session': session,
-                'players': players,
-                'checked_in_ids': checked_in_ids
+        # Validate confirmation window
+        now = fields.Datetime.now()
+        window_start = self.date_start - timedelta(minutes=15)
+        window_end = self.date_start + timedelta(minutes=30)
+        
+        if not (window_start <= now <= window_end):
+            raise ValidationError(_(
+                'Attendance can only be confirmed between 15 minutes before '
+                'and 30 minutes after session start.'
+            ))
+        
+        if self.attendance_status == 'confirmed':
+            raise UserError(_('Attendance already confirmed. Contact admin to adjust.'))
+        
+        # Get all registered players for this session
+        registered_players = self._get_registered_players()
+        
+        # Validate present_player_ids are subset of registered
+        present_players = self.env['academy.player'].browse(present_player_ids)
+        if not set(present_player_ids).issubset(set(registered_players.ids)):
+            raise ValidationError(_('Some players are not registered for this session.'))
+        
+        # Create attendance records ONLY for present players
+        attendance_vals = []
+        for player_id in present_player_ids:
+            attendance_vals.append({
+                'session_id': self.id,
+                'player_id': player_id,
+                'state': 'present',
+                'marked_by_id': self.env.user.id,
+                'confirmation_time': now
             })
         
-        return request.render('academy_attendance.kiosk_checkin', {
-            'session_data': session_data
-        })
-    
-    @http.route('/academy/kiosk/checkin/submit', type='json', auth='public', csrf=False)
-    def kiosk_checkin_submit(self, session_id, player_id):
-        session = request.env['academy.session.occurrence'].sudo().browse(session_id)
-        player = request.env['academy.player'].sudo().browse(player_id)
+        if attendance_vals:
+            self.env['academy.attendance'].create(attendance_vals)
         
-        # Validate check-in window
-        now = fields.Datetime.now()
-        if not (session.date_start - timedelta(minutes=15) <= now <= session.date_end + timedelta(minutes=15)):
-            return {'success': False, 'error': 'Check-in window not active'}
+        # Update session status
+        self.write({'attendance_status': 'confirmed'})
         
-        # Check for existing attendance
-        existing = request.env['academy.attendance'].sudo().search([
-            ('session_id', '=', session_id),
-            ('player_id', '=', player_id)
+        # Audit trail
+        present_count = len(present_player_ids)
+        total_count = len(registered_players)
+        absent_count = total_count - present_count
+        
+        # Account for pre-reported absences
+        absence_requests = self.env['academy.absence.request'].search([
+            ('session_id', '=', self.id)
         ])
-        if existing:
-            return {
-                'success': True, 
-                'already_checked_in': True,
-                'checkin_time': existing.checkin_time
-            }
+        pre_reported = len(absence_requests)
+        unreported_absent = absent_count - pre_reported
         
-        # Create attendance record
-        attendance = request.env['academy.attendance'].sudo().create({
-            'session_id': session_id,
-            'player_id': player_id,
-            'checkin_time': now,
-            'state': 'present',
-            'checkin_method': 'kiosk'
-        })
-        
-        # Check for absence override
-        absence = request.env['academy.absence.request'].sudo().search([
-            ('session_id', '=', session_id),
-            ('player_id', '=', player_id)
-        ])
-        if absence:
-            absence.write({'overridden_by_checkin': True})
-            session.message_post(
-                body=f"{player.name} checked in (overriding absence request: {absence.reason})"
-            )
+        self.message_post(
+            body=f"Attendance confirmed by {self.env.user.name}. "
+                 f"{present_count} of {total_count} players present. "
+                 f"Unreported absences: {unreported_absent}. "
+                 f"Pre-reported absences: {pre_reported}."
+        )
         
         return {
-            'success': True,
-            'already_checked_in': False,
-            'player_name': player.name,
-            'session_name': session.name,
-            'checkin_time': now
+            'present_count': present_count,
+            'unreported_absent': unreported_absent,
+            'pre_reported': pre_reported,
+            'total_count': total_count
         }
     
-    def _get_registered_players(self, session):
-        # Get players registered for this session
-        if session.session_type in ['tennis_group', 'physical_group']:
-            return request.env['academy.player'].sudo().search([
-                ('skill_group_id', '=', session.skill_group_id.id),
+    def _get_registered_players(self):
+        """Get all players registered for this session."""
+        if self.session_type in ['tennis_group', 'physical_group']:
+            # Group session: all players in skill group
+            return self.env['academy.player'].search([
+                ('skill_group_id', '=', self.skill_group_id.id),
                 ('active', '=', True)
             ])
-        else:  # individual sessions
-            return session.participant_ids
+        else:
+            # Individual session: explicit participants
+            return self.participant_ids
 ```
 
 ### 3.2.15 Acceptance Criteria
 | ID | Criterion |
 |----|-----------|
-| KIOSK1 | Tablet displays current session(s) with registered players in large, tappable list |
-| KIOSK2 | Tapping player name creates attendance record with state='present', method='kiosk' |
-| KIOSK3 | Confirmation screen displays for 2 seconds then auto-returns to player list |
-| KIOSK4 | Tapping same player again shows "Already checked in" (idempotent) |
-| KIOSK5 | Check-in only allowed within window (15 min before to 15 min after session) |
-| KIOSK6 | Absence request overridden if player checks in (logged in chatter) |
-| KIOSK7 | Multiple simultaneous sessions displayed with clear separation by court |
+| ATT-CONF1 | Coach sees prepopulated roster with all registered players checked (☑️) by default |
+| ATT-CONF2 | Tapping player toggles checkbox between ☑️ (present) and ❌ (absent) |
+| ATT-CONF3 | Pre-reported absences displayed separately, not in main roster |
+| ATT-CONF4 | Confirming creates attendance records ONLY for checked (present) players |
+| ATT-CONF5 | NO attendance records created for unchecked (absent) or pre-reported absence players |
+| ATT-CONF6 | Confirmation only allowed within window (15 min before to 30 min after start) |
+| ATT-CONF7 | Session status changes to 'confirmed' after successful confirmation |
+| ATT-CONF8 | Chatter audit documents confirmation with counts (present, absent, pre-reported) |
+| ATT-CONF9 | Cannot re-confirm already confirmed session (requires admin override) |
 
 ---
 
-## 3.3 Coach Supplemental Check-In (Mobile Interface)
+## 3.3 Walk-In Player Addition (Ad-Hoc Participation)
+
+---
+
+## 3.3 Walk-In Player Addition (Ad-Hoc Participation)
 
 ### 3.3.1 Purpose
-Enable coach to check in players who forgot to use the kiosk or arrived late, ensuring complete attendance records without requiring players to return to the kiosk.
+Allow coaches to add unregistered players (academy members not in the session's skill group or participant list) to the current session attendance, accommodating trials, make-up sessions, and skill-level adjustments.
 
 ### 3.3.2 Actors
 | Role | Responsibility |
 |------|----------------|
-| Coach | Views session attendance; checks in missing players |
-| System | Displays real-time check-in status; creates attendance records |
-| Database | Stores coach-initiated attendance records |
+| Coach | Searches for player; adds to session attendance |
+| System | Validates player eligibility; creates ad-hoc participation and attendance |
+| Database | Links player to session via participation record; creates attendance |
 
 ### 3.3.3 Preconditions
-- Coach authenticated (internal user with coach role)
-- Coach assigned to session or has permission to view
-- Session active or recently completed
-- Some players checked in via kiosk, some haven't
+- Coach viewing attendance confirmation screen for current session
+- Session attendance not yet confirmed (or coach has override permission)
+- Walk-in player exists in academy.player (is an academy member)
+- Walk-in player not already in the session roster
 
 ### 3.3.4 Triggers
-1. Coach opens mobile app/web interface
-2. Navigates to **Today's Sessions** → selects their current session
-3. Sees list of players: checked in vs not yet checked in
-4. Taps "Check In Now" for player physically present
+1. Player shows up who isn't on the prepopulated roster
+2. Coach taps **"Add Walk-In Player"** button on attendance screen
+3. Search dialog appears
 
 ### 3.3.5 Happy Path Flow
-1. Coach opens Academy mobile app on phone/tablet
-2. Navigates to **Today's Sessions**
-3. Selects current session: "Зелени - Monday 15:00"
-4. System displays attendance summary:
+1. Coach on attendance screen, sees Alex Johnson at practice who isn't listed
+2. Coach taps **"Add Walk-In Player"**
+3. Search dialog appears:
    ```
-   Зелени - Monday 15:00
-   Court 1 • 13:00 - 15:00
+   Add Walk-In Player
    ═══════════════════════════════════
-   Checked In: 8 of 12
+   Search by name or player code:
    
-   ✓ Стела Величкова     13:03 (Kiosk)
-   ✓ Jordan Player        13:05 (Kiosk)
-   ✓ Taylor Smith         13:02 (Kiosk)
-   ... (5 more)
+   [Search: _________________ ] 🔍
    
-   ───────────────────────────────────
-   Not Yet Checked In:
-   
-   Sam Anderson      [Check In Now]
-   Jamie Garcia      [Check In Now]
-   Drew Thompson     [Check In Now]
-   
-   ───────────────────────────────────
-   Absences Reported:
-   🅧 Chris Evans    Illness
+   Recent walk-ins:
+   - Maya Rodriguez (PLR0089)
+   - Alex Thompson (PLR0102)
    ═══════════════════════════════════
-   [Mark Session Complete]
+   [Cancel]
    ```
-5. Coach sees Sam Anderson is present but forgot to check in at kiosk
-6. Coach taps **"Check In Now"** next to Sam Anderson
-7. System creates `academy.attendance` record:
-   - session_id, player_id=Sam Anderson
-   - checkin_time=now, state='present', checkin_method='coach_manual'
-8. Sam Anderson moves to "Checked In" section with timestamp
-9. Count updates: "Checked In: 9 of 12"
-10. Coach repeats for other late arrivals
-11. When satisfied, coach taps **"Mark Session Complete"** to finalize
+4. Coach types "Alex J" in search field
+5. System displays filtered results:
+   ```
+   Search Results:
+   
+   ☑️  Alex Johnson          PLR0045
+       Age 11 • Orange Ball
+       
+   ☑️  Alex James            PLR0134
+       Age 13 • Green Ball
+   
+   Tap to add to session...
+   ```
+6. Coach taps **"Alex Johnson (PLR0045)"**
+7. Confirmation prompt:
+   ```
+   Add Alex Johnson to session?
+   
+   Player: Alex Johnson (PLR0045)
+   Session: Зелени - Monday 15:00
+   Normal Group: Orange Ball
+   Session Group: Green Ball ⚠️ Different
+   
+   Reason (optional):
+   [ ] Trial session
+   [ ] Make-up for missed session
+   [x] Skill level advancement
+   [ ] Other: _______________
+   
+   [Cancel]  [Add & Mark Present]
+   ```
+8. Coach selects "Skill level advancement" and taps **"Add & Mark Present"**
+9. System processes:
+   - Creates `academy.session.participant` (links player to session, temporary)
+   - Creates `academy.attendance` (state='present', marked_by=coach, is_walkin=True)
+   - Posts chatter: "Walk-in player Alex Johnson added by Coach [Name]. Reason: Skill level advancement."
+10. Alex Johnson appears in attendance roster with ☑️ (checked) and 🚶 walk-in icon
+11. Coach can now confirm attendance as normal
 
 ### 3.3.6 Alternative / Error Paths
 | Condition | Outcome |
 |-----------|---------|
-| Coach tries to check in player already checked in | Button disabled/hidden; shows "Already checked in at [time]" |
-| Coach tries to check in after session marked complete | Warning: "Session completed. Contact admin to adjust attendance." |
-| Network interruption | Cache check-in; sync when reconnected; show "Pending sync" indicator |
-| Player not registered for session | Not in list (filtered out during display) |
+| Player already in roster | Search shows: "Already in session roster" (button disabled) |
+| Non-academy player search | No results; prompt: "Player not found. Create new player first." |
+| Coach cancels search dialog | Returns to attendance screen; no changes |
+| Walk-in player marked absent by mistake | Coach can uncheck like any other player |
+| Session already confirmed | Warning: "Session confirmed. Adding walk-in requires admin override." |
 
 ### 3.3.7 Postconditions
-- Attendance records created with checkin_method='coach_manual'
-- Session's checked-in count updates
-- Billing pipeline can process these attendances normally (same as kiosk check-ins)
-- Coach can mark session complete to transition to billing phase
+- Player added to session roster (temporary participation)
+- Attendance record created if marked present
+- Walk-in flagged for billing review (may have different pricing)
+- Chatter audit documents addition with reason
+- Player visible in confirmed attendance list with walk-in indicator
 
 ### 3.3.8 Data Entities & Fields
 | Entity | Fields Created/Updated |
 |--------|------------------------|
-| academy.attendance | session_id, player_id, checkin_time, state='present', checkin_method='coach_manual' |
-| academy.session.occurrence | attendance_count (computed), state (when marked complete) |
+| academy.session.participant | session_id, player_id, is_walkin=True, walkin_reason (Selection/Text) |
+| academy.attendance | session_id, player_id, state='present', is_walkin=True, marked_by_id |
 
 ### 3.3.9 Security & Permissions
-- Action visible to: Coaches assigned to session, head coaches, site admin
-- Record rules: Coach can only check in for sessions where session.coach_id = user OR user in group_head_coach
-- Cannot check in players for other coaches' sessions (unless head coach/admin)
+- Action visible to: Coaches for their sessions, head coaches (all sessions), site admin
+- Cannot add players to other coaches' sessions (unless head coach/admin)
+- Walk-in flag helps admins review unusual attendance patterns
 
 ### 3.3.10 Business Rules / Validation
-- Can check in during session or up to 1 hour after session end (grace period)
-- Cannot check in >1 hour after session end (requires admin override)
-- Cannot mark "absent" - only add check-ins (players without check-ins simply have no attendance record)
-- "Mark Session Complete" available anytime during/after session
+- Walk-in must be existing academy player (cannot create on-the-fly)
+- Walk-in automatically marked present when added (default behavior)
+- Walk-in billing: May trigger special pricing review (e.g., trial session free/discounted)
+- Reason tracking: Helps identify skill group mismatches for admin adjustment
 
 ### 3.3.11 Auditing
-- Attendance record includes marked_by_id = coach user
-- Optional chatter on session: "Coach {name} checked in {player} at {time}"
-- Metric tracking: Coach check-in rate (how many players needed manual check-in vs kiosk)
+- Chatter message: "Walk-in player {player_name} ({player_code}) added by {coach_name}. Reason: {reason}."
+- Dashboard metric: Walk-in frequency by session, reason distribution
+- Admin report: Players frequently appearing as walk-ins (may need group reassignment)
 
 ### 3.3.12 UX Wireframe (Textual)
 ```
-[Mobile App - Coach View]
-
-═══════════════════════════════════════
-Зелени - Monday 15:00
-Court 1 • 13:00 - 15:00
-State: In Progress
+Add Walk-In Player Dialog
 ═══════════════════════════════════════
 
-📊 Checked In: 8 of 12 registered
+🔍 Search Academy Players
 
-✅ Checked In (8)
-─────────────────────────────────────
-Стела Величкова     13:03  Kiosk
-Jordan Player       13:05  Kiosk
-Taylor Smith        13:02  Kiosk
-Casey Lee           13:04  Kiosk
-Morgan Davis        13:06  Kiosk
-Riley Brown         13:08  Kiosk
-Avery Wilson        13:07  Kiosk
-Parker Martinez     13:10  Kiosk
+[Alex J_________________ ] 🔍
 
-⏳ Not Yet Checked In (3)
-─────────────────────────────────────
-Sam Anderson        [Check In Now]
-Jamie Garcia        [Check In Now]
-Drew Thompson       [Check In Now]
+───────────────────────────────────────
+Search Results (2):
 
-🚫 Absences Reported (1)
-─────────────────────────────────────
-Chris Evans         Illness
-                    (No action needed)
+┌─────────────────────────────────────┐
+│ Alex Johnson           PLR0045      │
+│ Age 11 • Orange Ball                │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ Alex James             PLR0134      │
+│ Age 13 • Green Ball                 │
+└─────────────────────────────────────┘
 
 ═══════════════════════════════════════
-[Mark Session Complete]
-═══════════════════════════════════════
+[Cancel]
+```
+
+**Confirmation Prompt:**
+```
+┌───────────────────────────────────┐
+│ Add Walk-In Player?               │
+├───────────────────────────────────┤
+│ Player: Alex Johnson (PLR0045)    │
+│ Age: 11 • Orange Ball             │
+│                                   │
+│ Session: Зелени - Monday 15:00    │
+│ Session Group: Green Ball         │
+│                                   │
+│ ⚠️ Different skill group          │
+│                                   │
+│ Reason (optional):                │
+│ ☐ Trial session                   │
+│ ☐ Make-up for missed session      │
+│ ☑ Skill level advancement         │
+│ ☐ Other: _______________          │
+│                                   │
+│ [Cancel]  [Add & Mark Present]    │
+└───────────────────────────────────┘
 ```
 
 ### 3.3.13 Sequence (Textual)
 ```
-Coach → App: Open Today's Sessions
-App → System: Fetch coach's sessions for today
-System → App: Return session list
-Coach → App: Select current session
-App → System: Fetch session attendance data
-System → Query: Registered players, attendance records, absence requests
-System → App: Return attendance summary (checked in, not checked in, absences)
-App: Display attendance interface
-Coach → App: Tap "Check In Now" for Sam Anderson
-App → System: POST check-in request (session_id, player_id, method='coach_manual')
-System → Attendance: Create record with coach as marked_by
+Coach → App: Tap "Add Walk-In Player"
+App: Display search dialog
+Coach → App: Type "Alex J" in search
+App → System: Query academy.player (name ILIKE 'Alex J%')
+System → App: Return matching players (not already in session)
+App: Display search results
+Coach → App: Tap "Alex Johnson"
+App: Display confirmation prompt with reason options
+Coach → App: Select reason, tap "Add & Mark Present"
+App → System: POST walk-in addition (session_id, player_id, reason)
+System → Validation: Player exists, not duplicate, coach has permission
+System → Participant: Create record (session, player, is_walkin=True, reason)
+System → Attendance: Create record (session, player, present, is_walkin=True)
+System → Chatter: Post audit message
 System → App: Return success
-App: Move Sam Anderson to "Checked In" section, update count
-Coach → App: Tap "Mark Session Complete"
-App → System: Update session state to 'completed'
-System → Session: Write state='completed', log chatter
-System → App: Confirm completion
-App: Show "Session marked complete. Billing will process attendees."
+App: Refresh roster with new player (checked, walk-in icon)
 ```
 
 ### 3.3.14 Pseudo Code
 ```python
-class AcademyAttendanceCoach(models.Model):
-    _name = 'academy.attendance'
-    
-    marked_by_id = fields.Many2one('res.users', string='Checked In By')
-    
-    @api.model
-    def coach_checkin(self, session_id, player_id):
-        """Coach-initiated check-in for player who missed kiosk."""
-        session = self.env['academy.session.occurrence'].browse(session_id)
-        player = self.env['academy.player'].browse(player_id)
-        
-        # Check for existing attendance
-        existing = self.search([
-            ('session_id', '=', session_id),
-            ('player_id', '=', player_id)
-        ])
-        if existing:
-            return {'success': False, 'error': 'Player already checked in', 'attendance': existing}
-        
-        # Validate grace period (during session or up to 1 hour after)
-        now = fields.Datetime.now()
-        if now > session.date_end + timedelta(hours=1):
-            raise ValidationError(_('Check-in window closed. Contact admin for retroactive attendance.'))
-        
-        # Create attendance record
-        attendance = self.create({
-            'session_id': session_id,
-            'player_id': player_id,
-            'checkin_time': now,
-            'state': 'present',
-            'checkin_method': 'coach_manual',
-            'marked_by_id': self.env.user.id
-        })
-        
-        # Audit
-        session.message_post(body=f"Coach {self.env.user.name} checked in {player.name} at {now}.")
-        
-        return {'success': True, 'attendance': attendance}
-
 class AcademySessionOccurrence(models.Model):
     _name = 'academy.session.occurrence'
     
-    def action_mark_complete(self):
-        """Coach marks session as complete (triggers billing phase)."""
-        for session in self:
-            if session.state == 'completed':
-                raise UserError(_('Session is already marked complete.'))
-            
-            session.write({'state': 'completed'})
-            session.message_post(
-                body=f"Session marked complete by {self.env.user.name}. "
-                     f"{session.attendance_count} players checked in."
-            )
+    @api.model
+    def add_walkin_player(self, session_id, player_id, reason=None):
+        """Add unregistered player to session as walk-in."""
+        session = self.browse(session_id)
+        player = self.env['academy.player'].browse(player_id)
         
-        return True
+        # Validate session not already confirmed (or user has override)
+        if session.attendance_status == 'confirmed' and not self.env.user.has_group('academy_core.group_head_coach'):
+            raise UserError(_('Session already confirmed. Contact admin to add walk-ins.'))
+        
+        # Check player not already in session
+        existing_participant = self.env['academy.session.participant'].search([
+            ('session_id', '=', session_id),
+            ('player_id', '=', player_id)
+        ])
+        if existing_participant:
+            raise ValidationError(_('Player already in session roster.'))
+        
+        # Create participation record
+        participant = self.env['academy.session.participant'].create({
+            'session_id': session_id,
+            'player_id': player_id,
+            'is_walkin': True,
+            'walkin_reason': reason
+        })
+        
+        # Create attendance record (marked present by default)
+        attendance = self.env['academy.attendance'].create({
+            'session_id': session_id,
+            'player_id': player_id,
+            'state': 'present',
+            'is_walkin': True,
+            'marked_by_id': self.env.user.id,
+            'confirmation_time': fields.Datetime.now()
+        })
+        
+        # Audit trail
+        reason_text = dict(participant._fields['walkin_reason'].selection).get(reason, 'Not specified')
+        session.message_post(
+            body=f"Walk-in player {player.name} ({player.reference}) added by {self.env.user.name}. "
+                 f"Reason: {reason_text}. "
+                 f"Player's normal group: {player.skill_group_id.name}; Session group: {session.skill_group_id.name}."
+        )
+        
+        return {
+            'success': True,
+            'participant_id': participant.id,
+            'attendance_id': attendance.id
+        }
+
+class AcademySessionParticipant(models.Model):
+    _name = 'academy.session.participant'
+    _description = 'Session Participant (includes walk-ins)'
+    
+    session_id = fields.Many2one('academy.session.occurrence', required=True, ondelete='cascade')
+    player_id = fields.Many2one('academy.player', required=True, ondelete='cascade')
+    is_walkin = fields.Boolean(default=False, help='Player added ad-hoc, not part of regular roster')
+    walkin_reason = fields.Selection([
+        ('trial', 'Trial Session'),
+        ('makeup', 'Make-up for Missed Session'),
+        ('advancement', 'Skill Level Advancement'),
+        ('other', 'Other')
+    ], string='Walk-In Reason')
+    
+    _sql_constraints = [
+        ('unique_session_player', 'UNIQUE(session_id, player_id)', 
+         'Player already in this session.')
+    ]
 ```
 
 ### 3.3.15 Acceptance Criteria
 | ID | Criterion |
 |----|-----------|
-| COACH-CHK1 | Coach sees real-time list of checked-in vs not-yet-checked-in players |
-| COACH-CHK2 | Tapping "Check In Now" creates attendance record with method='coach_manual' |
-| COACH-CHK3 | Player moves to "Checked In" section after coach check-in |
-| COACH-CHK4 | Absence requests displayed separately (no action needed) |
-| COACH-CHK5 | "Mark Session Complete" button available during/after session |
-| COACH-CHK6 | Coach cannot check in players for other coaches' sessions (permission check) |
-| COACH-CHK7 | Check-in grace period enforced (up to 1 hour after session end) |
+| WALK-IN1 | Coach can search academy players by name or code from attendance screen |
+| WALK-IN2 | Search excludes players already in session roster |
+| WALK-IN3 | Adding walk-in creates both participation and attendance records |
+| WALK-IN4 | Walk-in players automatically marked present when added |
+| WALK-IN5 | Walk-in reason captured for billing review |
+| WALK-IN6 | Walk-in indicator (🚶 icon) visible in attendance roster |
+| WALK-IN7 | Chatter audit documents walk-in addition with player details and reason |
+| WALK-IN8 | Cannot add walk-in after session confirmed (unless admin override) |
 
 ---
 
 ## 3.4 Billing Integration - Attendance-Driven Invoicing
 
 ### 3.4.1 Purpose
-Generate billing items only for players who actually attended (checked in via kiosk or coach), ensuring accurate charges based on actual attendance rather than expectations.
+Generate billing items only for players who actually attended (marked present by coach during attendance confirmation), ensuring accurate charges based on validated attendance rather than expectations.
+
+### 3.4.2 Actors
+| Role | Responsibility |
+|------|----------------|
+| Billing System (Cron) | Queries confirmed attendance records; creates billing items |
+| Database | Stores attendance and billing item records with traceability |
+| Admin | Reviews billing items before invoice generation; adjusts walk-in pricing |
+
+### 3.4.3 Preconditions
+- Sessions confirmed (attendance_status='confirmed')
+- Attendance records exist for present players (marked by coach)
+- Absence requests recorded for notified absences (no attendance records)
+- Billing pricing configured (group session price, individual session price, walk-in pricing)
+- No existing billing items for the attendance records (prevent duplicates)
+
+### 3.4.4 Triggers
+1. Monthly billing cron runs (configurable: weekly, bi-weekly, or monthly)
+2. Manual billing generation action invoked by admin
+3. Session marked complete (optional: create billing items immediately)
+
+### 3.4.5 Happy Path Flow
+1. Billing cron runs on first of month
+2. System queries `academy.attendance` for:
+   - session_id.attendance_status = 'confirmed' (coach validated)
+   - billing_item_id = NULL (not yet billed)
+3. For each attendance record:
+   - Determine price based on session type and walk-in status:
+     - Group session (regular): $25
+     - Group session (walk-in trial): $0 (free)
+     - Individual session: $60
+     - Physical training: $20
+   - Create `academy.billing.item`:
+     - player_id, session_id, primary_guardian_id
+     - amount = session price
+     - source_attendance_id (Many2one for traceability)
+     - is_walkin flag for admin review
+     - state = 'pending'
+4. Set attendance.billing_item_id = created billing item (prevent duplicate billing)
+5. System groups billing items by primary_guardian_id
+6. For each guardian with billing items:
+   - Create draft invoice (or add to existing monthly invoice)
+   - Invoice lines reference billing items
+7. Billing summary email sent to guardians
+8. **No billing for:**
+   - Players with absence requests (no attendance record exists)
+   - Players marked absent by coach (no attendance record created)
+   - No-shows (coach didn't mark present, no attendance record)
+
+### 3.4.6 Alternative / Error Paths
+| Condition | Outcome |
+|-----------|---------|
+| Attendance already billed | Skip (billing_item_id not NULL); log info |
+| Session not confirmed | Skip; billing only processes confirmed sessions |
+| Missing pricing config | Error logged; billing item creation skipped for that session type; admin notified |
+| Walk-in with trial reason | Billing item created with amount=$0; flagged for admin review |
+| Guardian archived/inactive | Billing item created but flagged for admin review |
+| Duplicate billing attempt | Prevented by attendance.billing_item_id uniqueness |
+
+### 3.4.7 Postconditions
+- Billing items created for all coach-confirmed present players
+- Attendance records linked to billing items (traceability)
+- Draft invoices created per guardian
+- **No charges for:** Absence requests, coach-marked absences, no-shows (all have no attendance records)
+- Walk-in billing items flagged for admin pricing review
+- Admin can review billing items before finalizing invoices
+
+### 3.4.8 Data Entities & Fields
+| Entity | Fields Created/Updated |
+|--------|------------------------|
+| academy.billing.item | id, player_id, session_id, primary_guardian_id, amount, source_attendance_id, is_walkin, state='pending' |
+| academy.attendance | billing_item_id (to prevent duplicate billing) |
+| account.move (Invoice) | invoice_line_ids referencing billing items |
+
+### 3.4.9 Security & Permissions
+- Billing cron runs as system user (superuser access)
+- Billing items: Create (system/admin), Read (admin, guardians for their own), Write (admin only), Delete (admin only with reason)
+- Invoices: Standard Odoo accounting permissions
+
+### 3.4.10 Business Rules / Validation
+- **Only coach-confirmed present players are billed**: No attendance record = no billing
+- **Absence requests prevent billing** (no attendance record created)
+- **Coach-marked absences prevent billing** (no attendance record created)
+- **No-shows (not marked either way)**: No attendance, no billing, may trigger follow-up
+- **Walk-ins**: Billed based on reason (trial=free, makeup=normal, advancement=normal)
+- **Duplicate prevention**: attendance.billing_item_id ensures one billing item per attendance
+
+### 3.4.11 Auditing
+- Billing item creation logged in chatter: "Billing item created for {player} - {session} - {amount}"
+- Dashboard metrics: Billing by session type, walk-in billing adjustments, average attendance rate
+- Monthly billing summary report: Total billed, players attended, absence rate, walk-in rate
+
+### 3.4.12 UX Wireframe (Textual)
+**Admin Billing Review:**
+```
+Billing Items - October 2025
+═══════════════════════════════════════════════════════════════════
+Date       Player              Session          Type      Amount
+10/13      Стела Величкова     Зелени - Mon     Regular   $25.00
+10/13      Jordan Player       Зелени - Mon     Regular   $25.00
+10/13      Alex Johnson        Зелени - Mon     Walk-In🚶 $25.00
+10/20      Стела Величкова     Зелени - Mon     Regular   $25.00
+... (hundreds more)
+───────────────────────────────────────────────────────────────────
+Regular: $12,100.00 (484 attendances)
+Walk-Ins: $250.00 (10 attendances)
+───────────────────────────────────────────────────────────────────
+Total: $12,350.00 (494 total attendances)
+
+[Review Walk-Ins] [Export CSV] [Generate Invoices]
+═══════════════════════════════════════════════════════════════════
+```
+
+### 3.4.13 Sequence (Textual)
+```
+Cron → System: Trigger monthly billing
+System → Attendance: Query records (session.confirmed, not billed)
+System → Loop: For each attendance record
+  System → Pricing: Lookup session type price + walk-in adjustment
+  System → BillingItem: Create (player, session, guardian, amount, is_walkin, source_attendance)
+  System → Attendance: Set billing_item_id (prevent duplicate)
+System → BillingItem: Group by primary_guardian_id
+System → Loop: For each guardian with items
+  System → Invoice: Create/update draft invoice
+  System → InvoiceLine: Add lines referencing billing items
+System → Guardian: Send billing summary email
+System → Admin: Send billing completion notification (highlight walk-ins for review)
+```
+
+### 3.4.14 Pseudo Code
+```python
+class AcademyBillingCron(models.AbstractModel):
+    _name = 'academy.billing.cron'
+    
+    @api.model
+    def run_monthly_billing(self):
+        """Generate billing items for coach-confirmed present players."""
+        # Find unbilled attendances from confirmed sessions
+        attendances = self.env['academy.attendance'].search([
+            ('session_id.attendance_status', '=', 'confirmed'),  # Coach validated
+            ('state', '=', 'present'),
+            ('billing_item_id', '=', False)  # Not yet billed
+        ])
+        
+        if not attendances:
+            _logger.info("[BILLING] No unbilled attendances found.")
+            return
+        
+        # Create billing items
+        billing_items = []
+        for att in attendances:
+            # Determine price based on session type and walk-in status
+            price = self._get_session_price(att)
+            
+            # Create billing item
+            billing_item = self.env['academy.billing.item'].create({
+                'player_id': att.player_id.id,
+                'session_id': att.session_id.id,
+                'primary_guardian_id': att.player_id.primary_guardian_id.id,
+                'amount': price,
+                'source_attendance_id': att.id,
+                'is_walkin': att.is_walkin,
+                'state': 'pending'
+            })
+            
+            # Link back to attendance (prevent duplicate billing)
+            att.write({'billing_item_id': billing_item.id})
+            
+            billing_items.append(billing_item)
+        
+        _logger.info(f"[BILLING] Created {len(billing_items)} billing items.")
+        
+        # Group by guardian and create invoices
+        self._create_guardian_invoices(billing_items)
+        
+        return billing_items
+    
+    def _get_session_price(self, attendance):
+        """Lookup pricing based on session type and walk-in status."""
+        session = attendance.session_id
+        
+        # Walk-in special pricing
+        if attendance.is_walkin:
+            participant = self.env['academy.session.participant'].search([
+                ('session_id', '=', session.id),
+                ('player_id', '=', attendance.player_id.id),
+                ('is_walkin', '=', True)
+            ], limit=1)
+            
+            if participant and participant.walkin_reason == 'trial':
+                return 0.0  # Free trial session
+        
+        # Standard pricing
+        price_config = {
+            'tennis_group': 25.0,
+            'tennis_individual': 60.0,
+            'physical_group': 20.0,
+            'physical_individual': 50.0
+        }
+        return price_config.get(session.session_type, 25.0)
+    
+    def _create_guardian_invoices(self, billing_items):
+        """Group billing items by guardian and create invoices."""
+        guardian_items = {}
+        for item in billing_items:
+            guardian_id = item.primary_guardian_id.id
+            if guardian_id not in guardian_items:
+                guardian_items[guardian_id] = []
+            guardian_items[guardian_id].append(item)
+        
+        for guardian_id, items in guardian_items.items():
+            guardian = self.env['res.partner'].browse(guardian_id)
+            
+            # Create draft invoice
+            invoice = self.env['account.move'].create({
+                'move_type': 'out_invoice',
+                'partner_id': guardian_id,
+                'invoice_date': fields.Date.today(),
+                'invoice_line_ids': [(0, 0, {
+                    'name': f"{item.session_id.name} - {item.player_id.name}" + 
+                            (" 🚶 Walk-In" if item.is_walkin else ""),
+                    'quantity': 1,
+                    'price_unit': item.amount,
+                }) for item in items]
+            })
+            
+            # Mark billing items as invoiced
+            self.env['academy.billing.item'].browse([i.id for i in items]).write({
+                'state': 'invoiced',
+                'invoice_id': invoice.id
+            })
+            
+            _logger.info(f"[BILLING] Created invoice {invoice.name} for guardian {guardian.name} with {len(items)} items.")
+```
+
+### 3.4.15 Acceptance Criteria
+| ID | Criterion |
+|----|-----------|
+| BILL1 | Billing items created ONLY for attendances from confirmed sessions |
+| BILL2 | Coach-marked present players billed; absences not billed (no attendance record) |
+| BILL3 | Walk-in trial sessions billed at $0; flagged for admin review |
+| BILL4 | Billing item links to source attendance record (full traceability) |
+| BILL5 | Duplicate billing prevented (attendance.billing_item_id check) |
+| BILL6 | Invoice lines clearly indicate walk-in sessions |
+| BILL7 | Admin dashboard shows walk-in billing for review before invoice finalization |
+
+---
 
 ### 3.4.2 Actors
 | Role | Responsibility |

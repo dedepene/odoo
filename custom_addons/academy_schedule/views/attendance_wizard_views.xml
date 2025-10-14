@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Attendance Confirmation Wizard Form -->
+    <record id="view_attendance_confirmation_wizard_form" model="ir.ui.view">
+        <field name="name">academy.attendance.confirmation.wizard.form</field>
+        <field name="model">academy.attendance.confirmation.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Attendance">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="session_name" readonly="1"/>
+                            <field name="session_date" readonly="1"/>
+                            <field name="session_start" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="total_count" readonly="1"/>
+                            <field name="present_count" readonly="1"/>
+                            <field name="absent_count" readonly="1"/>
+                            <field name="pre_reported_count" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <separator string="Attendance Roster"/>
+                    <p class="text-muted">
+                        All players are checked (☑️) by default. <strong>Uncheck players who are absent.</strong>
+                    </p>
+                    
+                    <field name="present_player_ids" widget="many2many_checkboxes" 
+                           domain="[('id', 'in', registered_player_ids)]">
+                        <list>
+                            <field name="name"/>
+                            <field name="reference"/>
+                            <field name="age_years"/>
+                            <field name="skill_group_id"/>
+                        </list>
+                    </field>
+                    
+                    <separator string="Pre-Reported Absences" invisible="pre_reported_count == 0"/>
+                    <p class="text-muted" invisible="pre_reported_count == 0">
+                        These players reported absence beforehand. They are excluded from the roster above.
+                    </p>
+                    <field name="absence_request_ids" nolabel="1" invisible="pre_reported_count == 0">
+                        <list create="false" edit="false" delete="false">
+                            <field name="player_id"/>
+                            <field name="reason_code"/>
+                            <field name="reason_note"/>
+                            <field name="reporter_id"/>
+                        </list>
+                    </field>
+                    
+                    <separator string="Confirmation Summary"/>
+                    <field name="confirmation_message" nolabel="1" widget="html"/>
+                    
+                    <field name="session_id" invisible="1"/>
+                    <field name="registered_player_ids" invisible="1"/>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" string="Confirm Attendance" type="object" 
+                            class="btn-primary" data-hotkey="q"/>
+                    <button name="action_cancel" string="Cancel" type="object" 
+                            class="btn-secondary" data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Walk-In Player Wizard Form -->
+    <record id="view_attendance_walkin_wizard_form" model="ir.ui.view">
+        <field name="name">academy.attendance.walkin.wizard.form</field>
+        <field name="model">academy.attendance.walkin.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Add Walk-In Player">
+                <sheet>
+                    <group>
+                        <field name="session_name" readonly="1"/>
+                        <field name="session_skill_group_id" readonly="1"/>
+                    </group>
+                    
+                    <separator string="Select Player"/>
+                    <p class="text-muted">
+                        Search for an academy player to add to this session. The player will be automatically marked present.
+                    </p>
+                    
+                    <group>
+                        <field name="player_id" 
+                               options="{'no_create': True, 'no_open': True}"
+                               placeholder="Search by player name or code..."/>
+                    </group>
+                    
+                    <div invisible="not player_id">
+                        <separator string="Player Information"/>
+                        <group>
+                            <group>
+                                <field name="player_skill_group_id" readonly="1"/>
+                                <field name="player_age" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="skill_group_mismatch" invisible="1"/>
+                            </group>
+                        </group>
+                        <field name="mismatch_warning" nolabel="1" widget="html" 
+                               invisible="not skill_group_mismatch"/>
+                        
+                        <separator string="Walk-In Reason"/>
+                        <group>
+                            <field name="walkin_reason" required="1"/>
+                            <field name="walkin_reason_note" placeholder="Additional notes (optional)..."/>
+                        </group>
+                    </div>
+                    
+                    <field name="session_id" invisible="1"/>
+                </sheet>
+                <footer>
+                    <button name="action_add_player" string="Add &amp; Mark Present" type="object" 
+                            class="btn-primary" data-hotkey="q" 
+                            invisible="not player_id"/>
+                    <button name="action_cancel" string="Cancel" type="object" 
+                            class="btn-secondary" data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

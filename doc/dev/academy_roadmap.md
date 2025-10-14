@@ -365,10 +365,8 @@ Schedule:
 - [x] Suspension handling
 
 Attendance:
-- [ ] Check-in driven attendance model (no pre-generation)
 - [ ] Absence request portal form (guardian notification)
-- [ ] Kiosk/tablet check-in interface (player self-service)
-- [ ] Coach supplemental check-in (mobile interface)
+- [ ] Coach checks-in/out players on the spot (mobile interface)
 
 Billing & Consumables:
 - [ ] Billing item pipeline

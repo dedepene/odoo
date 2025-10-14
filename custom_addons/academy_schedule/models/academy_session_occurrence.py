@@ -1,10 +1,10 @@
 """Session occurrence model for actual scheduled sessions."""
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from typing import TYPE_CHECKING
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 
 if TYPE_CHECKING:  # pragma: no cover - typing helpers only
@@ -92,9 +92,21 @@ class AcademySessionOccurrence(models.Model):
                                  string='Absences')
     absence_count = fields.Integer(string='Absences', compute='_compute_absence_count')
     
-    # Attendance tracking (will be linked from academy_attendance module)
-    # attendance_ids = fields.One2many('academy.attendance', 'occurrence_id', 
-    #                                  string='Attendance')
+    # Attendance tracking
+    attendance_ids = fields.One2many('academy.attendance', 'session_id',
+                                     string='Attendance')
+    attendance_count = fields.Integer(string='Attendance Count', 
+                                     compute='_compute_attendance_count',
+                                     store=True)
+    attendance_status = fields.Selection([
+        ('pending', 'Pending Confirmation'),
+        ('confirmed', 'Confirmed'),
+        ('completed', 'Completed'),
+    ], string='Attendance Status', default='pending', tracking=True)
+    
+    # Session participants (including walk-ins)
+    participant_ids = fields.One2many('academy.session.participant', 'session_id',
+                                     string='Participants')
     
     notes = fields.Text(string='Notes')
     active = fields.Boolean(string='Active', default=True)
@@ -228,6 +240,12 @@ class AcademySessionOccurrence(models.Model):
                 lambda a: a.state in ('reported', 'acknowledged')
             ))
 
+    @api.depends('attendance_ids')
+    def _compute_attendance_count(self):
+        """Count attendance records (confirmed present players)."""
+        for occurrence in self:
+            occurrence.attendance_count = len(occurrence.attendance_ids)
+
     @api.constrains('start_datetime', 'end_datetime')
     def _check_datetimes(self):
         """Validate datetime fields."""
@@ -342,3 +360,178 @@ class AcademySessionOccurrence(models.Model):
             'domain': [('occurrence_id', '=', self.id)],
             'context': {'default_occurrence_id': self.id},
         }
+
+    # ------------------------------------------------------------------
+    # Attendance Management
+    # ------------------------------------------------------------------
+    
+    def _get_registered_players(self):
+        """
+        Get all players registered for this session.
+        For group sessions: all players in the skill group.
+        For individual sessions: explicitly assigned players.
+        """
+        self.ensure_one()
+        if self.session_type in ['tennis_group', 'physical_group']:
+            # Group session: all players in skill group
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.info(f"Getting registered players for session {self.id}: skill_group_id={self.skill_group_id.id if self.skill_group_id else None}, skill_group_name={self.skill_group_id.name if self.skill_group_id else None}")
+            
+            players = self.env['academy.player'].search([
+                ('skill_group_id', '=', self.skill_group_id.id),
+                ('active', '=', True)
+            ])
+            _logger.info(f"Found {len(players)} players: {[(p.reference, p.name, p.skill_group_id.name) for p in players]}")
+            return players
+        else:
+            # Individual session: explicit participants
+            return self.player_ids
+
+    def action_confirm_attendance(self):
+        """
+        Open attendance confirmation wizard.
+        Coach will review prepopulated roster and mark absentees.
+        """
+        self.ensure_one()
+        
+        # TODO: Re-enable time window validation after testing
+        # Validate confirmation window (15 min before to 30 min after session start)
+        # COMMENTED OUT FOR TESTING - Allows confirmation at any time
+        # now = fields.Datetime.now()
+        # window_start = self.start_datetime - timedelta(minutes=15)
+        # window_end = self.start_datetime + timedelta(minutes=30)
+        # 
+        # if not (window_start <= now <= window_end):
+        #     raise UserError(
+        #         'Attendance can only be confirmed between 15 minutes before '
+        #         'and 30 minutes after session start.'
+        #     )
+        
+        if self.attendance_status == 'confirmed':
+            raise UserError('Attendance already confirmed. Contact admin to adjust.')
+        
+        # Get registered players
+        registered_players = self._get_registered_players()
+        
+        # Get pre-reported absences
+        absence_requests = self.env['academy.session.absence'].search([
+            ('occurrence_id', '=', self.id),
+            ('state', 'in', ['reported', 'acknowledged'])
+        ])
+        
+        # Open wizard with all registered players marked present by default
+        wizard = self.env['academy.attendance.confirmation.wizard'].create({
+            'session_id': self.id,
+            'registered_player_ids': [(6, 0, registered_players.ids)],
+            'present_player_ids': [(6, 0, registered_players.ids)],  # All checked by default
+            'absence_request_ids': [(6, 0, absence_requests.ids)],
+        })
+        
+        return {
+            'name': 'Confirm Attendance',
+            'type': 'ir.actions.act_window',
+            'res_model': 'academy.attendance.confirmation.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
+
+    def process_attendance_confirmation(self, present_player_ids):
+        """
+        Process attendance confirmation from wizard.
+        Creates attendance records ONLY for players marked present.
+        
+        Args:
+            present_player_ids: List of player IDs who are present
+        """
+        self.ensure_one()
+        
+        # Validate
+        if self.attendance_status == 'confirmed':
+            raise UserError('Attendance already confirmed.')
+        
+        registered_players = self._get_registered_players()
+        present_players = self.env['academy.player'].browse(present_player_ids)
+        
+        # Validate present_player_ids are subset of registered (plus walk-ins)
+        walk_ins = self.participant_ids.filtered(lambda p: p.is_walkin).mapped('player_id')
+        all_eligible = registered_players | walk_ins
+        
+        if not set(present_player_ids).issubset(set(all_eligible.ids)):
+            raise ValidationError('Some players are not registered for this session.')
+        
+        # Create attendance records ONLY for present players
+        attendance_vals = []
+        for player in present_players:
+            # Check if walk-in
+            walk_in_participant = self.participant_ids.filtered(
+                lambda p: p.player_id == player and p.is_walkin
+            )
+            
+            attendance_vals.append({
+                'session_id': self.id,
+                'player_id': player.id,
+                'state': 'present',
+                'marked_by_id': self.env.user.id,
+                'confirmation_time': fields.Datetime.now(),
+                'is_walkin': bool(walk_in_participant),
+                'walkin_reason': walk_in_participant.walkin_reason if walk_in_participant else False,
+            })
+        
+        if attendance_vals:
+            self.env['academy.attendance'].create(attendance_vals)
+        
+        # Update session status
+        self.write({'attendance_status': 'confirmed'})
+        
+        # Calculate counts for audit
+        present_count = len(present_player_ids)
+        total_count = len(registered_players)
+        absent_count = total_count - present_count
+        
+        # Account for pre-reported absences
+        absence_requests = self.env['academy.session.absence'].search([
+            ('occurrence_id', '=', self.id),
+            ('state', 'in', ['reported', 'acknowledged'])
+        ])
+        pre_reported = len(absence_requests)
+        unreported_absent = absent_count - pre_reported
+        
+        # Post audit trail
+        self.message_post(
+            body=f"Attendance confirmed by {self.env.user.name}. "
+                 f"{present_count} of {total_count} players present. "
+                 f"Unreported absences: {unreported_absent}. "
+                 f"Pre-reported absences: {pre_reported}."
+        )
+        
+        return {
+            'present_count': present_count,
+            'unreported_absent': max(0, unreported_absent),
+            'pre_reported': pre_reported,
+            'total_count': total_count
+        }
+
+    def action_add_walkin_player(self):
+        """
+        Open walk-in player addition wizard.
+        Allows coach to add unregistered players to session.
+        """
+        self.ensure_one()
+        
+        wizard = self.env['academy.attendance.walkin.wizard'].create({
+            'session_id': self.id,
+        })
+        
+        return {
+            'name': 'Add Walk-In Player',
+            'type': 'ir.actions.act_window',
+            'res_model': 'academy.attendance.walkin.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }
+

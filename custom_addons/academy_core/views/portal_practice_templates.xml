@@ -1,92 +1,515 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <!-- Portal home card: Practice -->
-        <template id="portal_my_home_practice" name="Portal layout : Practice" inherit_id="portal.portal_my_home" priority="30">
-            <xpath expr="//div[hasclass('o_portal_docs')]" position="before">
-                <t t-set="portal_practice_enable" t-value="True"/>
-            </xpath>
-            <xpath expr="//div[hasclass('o_portal_docs')]" position="inside">
-                <t t-call="portal.portal_docs_entry">
-                    <t t-set="icon" t-value="'/sale/static/src/img/bag.svg'"/>
-                    <t t-set="title">Practice</t>
-                    <t t-set="url" t-value="'/my/practice'"/>
-                    <t t-set="text">View your child's upcoming sessions and report absences</t>
-                </t>
+        <!-- Guardian Navigation Menu -->
+        <template id="guardian_portal_nav" name="Guardian Portal Navigation">
+            <nav class="o_portal_guardian_nav navbar navbar-expand-lg navbar-light bg-light mb-3" t-if="request.env.user.has_group('academy_core.group_academy_guardian')">
+                <div class="container">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#guardianNavbar" aria-controls="guardianNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="guardianNavbar">
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item">
+                                <a t-att-class="'nav-link ' + ('active' if page_name == 'home' else '')" href="/my/home">
+                                    <i class="fa fa-home me-1"/> Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-att-class="'nav-link ' + ('active' if page_name == 'kids' else '')" href="/my/kids">
+                                    <i class="fa fa-users me-1"/> My Kids
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-att-class="'nav-link ' + ('active' if page_name == 'sessions' else '')" href="/my/sessions">
+                                    <i class="fa fa-calendar me-1"/> Sessions
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-att-class="'nav-link ' + ('active' if page_name == 'billing' else '')" href="/my/billing">
+                                    <i class="fa fa-file-text me-1"/> Billing
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a t-att-class="'nav-link ' + ('active' if page_name == 'profile' else '')" href="/my/profile">
+                                    <i class="fa fa-user me-1"/> Profile
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+        </template>
+
+        <!-- Insert guardian navigation into portal layout -->
+        <template id="portal_layout_guardian_nav" name="Add Guardian Nav to Portal Layout" inherit_id="portal.portal_layout" priority="10">
+            <xpath expr="//div[hasclass('o_portal')]" position="before">
+                <t t-call="academy_core.guardian_portal_nav"/>
             </xpath>
         </template>
 
-        <!-- Practice page listing children and occurrences -->
-        <template id="portal_my_practice" name="My Practice">
+        <!-- Guardian Home / Dashboard -->
+        <template id="portal_guardian_home" name="Guardian Dashboard">
             <t t-call="portal.portal_layout">
                 <t t-set="breadcrumbs_searchbar" t-value="True"/>
                 <t t-call="portal.portal_searchbar">
-                    <t t-set="title">Practice</t>
+                    <t t-set="title">Dashboard</t>
                 </t>
 
                 <div class="container mt-4">
-                    <t t-if="not players">
-                        <div class="alert alert-warning">No children are linked to your account.</div>
-                    </t>
-                    <t t-foreach="players" t-as="player">
-                        <div class="card mb-3">
-                            <div class="card-header">
-                                <h5 t-out="player.name"/>
+                    <!-- Welcome message -->
+                    <div class="alert alert-info mb-4">
+                        <h4>Welcome, <t t-esc="request.env.user.name"/>!</h4>
+                        <p class="mb-0">Manage your children's activities, view schedules, and stay updated.</p>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3 class="text-primary"><t t-esc="len(players)"/></h3>
+                                    <p class="text-muted mb-0">Enrolled Children</p>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <t t-set="occs" t-value="occurrences_by_player.get(player.id)"/>
-                                <t t-if="not occs">
-                                    <p>No upcoming sessions.</p>
-                                </t>
-                                <t t-if="occs">
-                                    <table class="table">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3 class="text-success"><t t-esc="len(upcoming_sessions)"/></h3>
+                                    <p class="text-muted mb-0">Upcoming Sessions</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <a href="/my/kids" class="btn btn-primary">View My Kids</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Sessions -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fa fa-calendar me-2"/>Next Upcoming Sessions</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not upcoming_sessions">
+                                <p class="text-muted">No upcoming sessions scheduled.</p>
+                            </t>
+                            <t t-if="upcoming_sessions">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
                                         <thead>
                                             <tr>
+                                                <th>Child</th>
                                                 <th>Date</th>
                                                 <th>Time</th>
                                                 <th>Session</th>
-                                                <th></th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <t t-foreach="occs" t-as="o">
+                                            <t t-foreach="upcoming_sessions" t-as="session">
                                                 <tr>
-                                                    <td><span t-field="o.date"/></td>
+                                                    <td><strong><t t-esc="session['player'].name"/></strong></td>
+                                                    <td><span t-field="session['occurrence'].date"/></td>
                                                     <td>
-                                                        <t t-if="o.start_datetime and o.end_datetime">
-                                                            <span t-esc="o.start_datetime.strftime('%H:%M')"/> - <span t-esc="o.end_datetime.strftime('%H:%M')"/>
+                                                        <t t-if="session['occurrence'].start_datetime and session['occurrence'].end_datetime">
+                                                            <span t-esc="session['occurrence'].start_datetime.strftime('%H:%M')"/> - 
+                                                            <span t-esc="session['occurrence'].end_datetime.strftime('%H:%M')"/>
                                                         </t>
                                                     </td>
-                                                    <td><t t-esc="o.template_id.name or o.name"/></td>
+                                                    <td><t t-esc="session['occurrence'].template_id.name or session['occurrence'].name"/></td>
                                                     <td>
-                                                        <form action="/my/practice/report_absence" method="post">
-                                                            <input type="hidden" name="occurrence_id" t-att-value="o.id"/>
-                                                            <input type="hidden" name="player_id" t-att-value="player.id"/>
-                                                            <button class="btn btn-outline-danger btn-sm" type="submit">Report Absence</button>
-                                                        </form>
+                                                        <!-- Check if absence exists for this session -->
+                                                        <t t-set="occ_id" t-value="session['occurrence'].id"/>
+                                                        <t t-set="existing_absence" t-value="absences_by_occurrence.get(occ_id)"/>
+                                                        
+                                                        <t t-if="existing_absence">
+                                                            <!-- Show Cancel Absence button -->
+                                                            <form action="/my/sessions/cancel_absence" method="post" style="display:inline;">
+                                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                                <input type="hidden" name="absence_id" t-att-value="existing_absence.id"/>
+                                                                <input type="hidden" name="redirect" value="/my/home"/>
+                                                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                                    <i class="fa fa-times-circle me-1"/>Cancel Absence
+                                                                </button>
+                                                            </form>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <!-- Show Report Absence button -->
+                                                            <button class="btn btn-sm btn-outline-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    t-att-data-bs-target="'#absenceModal_' + str(session['occurrence'].id) + '_' + str(session['player'].id)">
+                                                                Report Absence
+                                                            </button>
+                                                        </t>
                                                     </td>
                                                 </tr>
                                             </t>
                                         </tbody>
                                     </table>
-                                </t>
-                            </div>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="/my/sessions" class="btn btn-outline-primary">View All Sessions</a>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- My Kids Summary -->
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fa fa-users me-2"/>My Children</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not players">
+                                <p class="text-muted">No children are linked to your account.</p>
+                            </t>
+                            <t t-if="players">
+                                <div class="row">
+                                    <t t-foreach="players" t-as="player">
+                                        <div class="col-md-6 col-lg-4 mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title"><t t-esc="player.name"/></h5>
+                                                    <p class="card-text text-muted">
+                                                        <small>Skill Group: <t t-esc="player.skill_group_id.name"/></small><br/>
+                                                        <small>Age: <t t-esc="int(player.age_years)"/> years</small>
+                                                    </p>
+                                                    <a t-attf-href="/my/kids/#{player.id}" class="btn btn-sm btn-primary">View Details</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Absence Modal Templates -->
+                <t t-foreach="upcoming_sessions" t-as="session">
+                    <t t-call="academy_core.absence_modal">
+                        <t t-set="modal_id" t-value="'absenceModal_' + str(session['occurrence'].id) + '_' + str(session['player'].id)"/>
+                        <t t-set="occurrence" t-value="session['occurrence']"/>
+                        <t t-set="player" t-value="session['player']"/>
+                        <t t-set="redirect" t-value="'/my/home'"/>
+                    </t>
+                </t>
+            </t>
+        </template>
+
+        <!-- My Kids List -->
+        <template id="portal_my_kids" name="My Kids">
+            <t t-call="portal.portal_layout">
+                <t t-set="breadcrumbs_searchbar" t-value="True"/>
+                <t t-call="portal.portal_searchbar">
+                    <t t-set="title">My Kids</t>
+                </t>
+
+                <div class="container mt-4">
+                    <t t-if="not players">
+                        <div class="alert alert-warning">
+                            <i class="fa fa-info-circle me-2"/>No children are linked to your account.
+                        </div>
+                    </t>
+                    <t t-if="players">
+                        <div class="row">
+                            <t t-foreach="players" t-as="player">
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0"><t t-esc="player.name"/></h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <dl class="row mb-0">
+                                                <dt class="col-sm-4">Date of Birth:</dt>
+                                                <dd class="col-sm-8"><span t-field="player.dob"/></dd>
+                                                
+                                                <dt class="col-sm-4">Age:</dt>
+                                                <dd class="col-sm-8"><t t-esc="int(player.age_years)"/> years</dd>
+                                                
+                                                <dt class="col-sm-4">Skill Group:</dt>
+                                                <dd class="col-sm-8"><t t-esc="player.skill_group_id.name"/></dd>
+                                                
+                                                <dt class="col-sm-4">Lead Coach:</dt>
+                                                <dd class="col-sm-8">
+                                                    <t t-if="player.lead_coach_id">
+                                                        <t t-esc="player.lead_coach_id.name"/>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <span class="text-muted">Not assigned</span>
+                                                    </t>
+                                                </dd>
+                                            </dl>
+                                        </div>
+                                        <div class="card-footer">
+                                            <a t-attf-href="/my/kids/#{player.id}" class="btn btn-primary">
+                                                <i class="fa fa-eye me-1"/>View Details
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
                         </div>
                     </t>
                 </div>
             </t>
         </template>
-            <!-- Override existing Orders tile (sale) to show Practice instead -->
-            <template id="portal_my_home_sale_override" name="Override Orders to Practice" inherit_id="sale.portal_my_home_sale" priority="5">
-                <xpath expr="//div[@id='portal_client_category']/t" position="replace">
-                    <t t-call="portal.portal_docs_entry">
-                        <t t-set="icon" t-value="'/sale/static/src/img/bag.svg'"/>
-                        <t t-set="title">Practice</t>
-                        <t t-set="url" t-value="'/my/practice'"/>
-                        <t t-set="text">View your child's upcoming sessions and report absences</t>
-                        <t t-set="placeholder_count" t-value="'order_count'"/>
+
+        <!-- Kid Detail View -->
+        <template id="portal_kid_detail" name="Kid Detail">
+            <t t-call="portal.portal_layout">
+                <t t-set="breadcrumbs_searchbar" t-value="True"/>
+                <t t-call="portal.portal_searchbar">
+                    <t t-set="title" t-value="player.name"/>
+                </t>
+
+                <div class="container mt-4">
+                    <!-- Player Info Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="fa fa-user me-2"/><t t-esc="player.name"/></h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Date of Birth:</dt>
+                                        <dd class="col-sm-7"><span t-field="player.dob"/></dd>
+                                        
+                                        <dt class="col-sm-5">Age:</dt>
+                                        <dd class="col-sm-7"><t t-esc="int(player.age_years)"/> years</dd>
+                                        
+                                        <dt class="col-sm-5">Skill Group:</dt>
+                                        <dd class="col-sm-7"><t t-esc="player.skill_group_id.name"/></dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Lead Coach:</dt>
+                                        <dd class="col-sm-7">
+                                            <t t-if="player.lead_coach_id">
+                                                <t t-esc="player.lead_coach_id.name"/>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-muted">Not assigned</span>
+                                            </t>
+                                        </dd>
+                                        
+                                        <dt class="col-sm-5">Email:</dt>
+                                        <dd class="col-sm-7">
+                                            <t t-if="player.email">
+                                                <t t-esc="player.email"/>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-muted">Not provided</span>
+                                            </t>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Sessions -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fa fa-calendar-plus me-2"/>Upcoming Sessions</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not upcoming_sessions">
+                                <p class="text-muted">No upcoming sessions scheduled.</p>
+                            </t>
+                            <t t-if="upcoming_sessions">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                                <th>Session</th>
+                                                <th>Type</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="upcoming_sessions" t-as="o">
+                                                <tr>
+                                                    <td><span t-field="o.date"/></td>
+                                                    <td>
+                                                        <t t-if="o.start_datetime and o.end_datetime">
+                                                            <span t-esc="o.start_datetime.strftime('%H:%M')"/> - 
+                                                            <span t-esc="o.end_datetime.strftime('%H:%M')"/>
+                                                        </t>
+                                                    </td>
+                                                    <td><t t-esc="o.template_id.name or o.name"/></td>
+                                                    <td>
+                                                        <span class="badge bg-info">
+                                                            <t t-if="'tennis' in o.session_type">Tennis</t>
+                                                            <t t-elif="'physical' in o.session_type">Physical</t>
+                                                            <t t-else="">Other</t>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <!-- Check if absence exists for this session -->
+                                                        <t t-set="existing_absence" t-value="absences_map.get(o.id)"/>
+                                                        
+                                                        <t t-if="existing_absence">
+                                                            <!-- Show Cancel Absence button -->
+                                                            <form action="/my/sessions/cancel_absence" method="post" style="display:inline;">
+                                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                                <input type="hidden" name="absence_id" t-att-value="existing_absence.id"/>
+                                                                <input type="hidden" name="redirect" t-attf-value="/my/kids/#{player.id}"/>
+                                                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                                    <i class="fa fa-times-circle me-1"/>Cancel Absence
+                                                                </button>
+                                                            </form>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <!-- Show Report Absence button -->
+                                                            <button class="btn btn-sm btn-outline-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    t-att-data-bs-target="'#absenceModal_' + str(o.id) + '_' + str(player.id)">
+                                                                Report Absence
+                                                            </button>
+                                                        </t>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Past Sessions -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fa fa-history me-2"/>Recent Past Sessions</h5>
+                        </div>
+                        <div class="card-body">
+                            <t t-if="not past_sessions">
+                                <p class="text-muted">No past sessions recorded.</p>
+                            </t>
+                            <t t-if="past_sessions">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                                <th>Session</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="past_sessions" t-as="o">
+                                                <tr>
+                                                    <td><span t-field="o.date"/></td>
+                                                    <td>
+                                                        <t t-if="o.start_datetime and o.end_datetime">
+                                                            <span t-esc="o.start_datetime.strftime('%H:%M')"/> - 
+                                                            <span t-esc="o.end_datetime.strftime('%H:%M')"/>
+                                                        </t>
+                                                    </td>
+                                                    <td><t t-esc="o.template_id.name or o.name"/></td>
+                                                    <td>
+                                                        <t t-if="o.state == 'completed'">
+                                                            <span class="badge bg-success">Completed</span>
+                                                        </t>
+                                                        <t t-elif="o.state == 'cancelled'">
+                                                            <span class="badge bg-danger">Cancelled</span>
+                                                        </t>
+                                                        <t t-elif="o.state == 'suspended'">
+                                                            <span class="badge bg-warning">Suspended</span>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <span class="badge bg-secondary"><t t-esc="o.state.title()"/></span>
+                                                        </t>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <a href="/my/kids" class="btn btn-secondary">
+                            <i class="fa fa-arrow-left me-1"/>Back to My Kids
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Absence Modals -->
+                <t t-foreach="upcoming_sessions" t-as="o">
+                    <t t-call="academy_core.absence_modal">
+                        <t t-set="modal_id" t-value="'absenceModal_' + str(o.id) + '_' + str(player.id)"/>
+                        <t t-set="occurrence" t-value="o"/>
+                        <t t-set="player" t-value="player"/>
+                        <t t-set="redirect" t-value="'/my/kids/' + str(player.id)"/>
                     </t>
-                </xpath>
-            </template>
-        </data>
-    </odoo>
+                </t>
+            </t>
+        </template>
+
+        <!-- Absence Modal Component -->
+        <template id="absence_modal" name="Absence Report Modal">
+            <div class="modal fade" t-att-id="modal_id" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Report Absence</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="/my/sessions/report_absence" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="occurrence_id" t-att-value="occurrence.id"/>
+                            <input type="hidden" name="player_id" t-att-value="player.id"/>
+                            <input type="hidden" name="redirect" t-att-value="redirect or '/my/sessions'"/>
+                            
+                            <div class="modal-body">
+                                <p><strong>Child:</strong> <t t-esc="player.name"/></p>
+                                <p><strong>Session:</strong> <t t-esc="occurrence.template_id.name or occurrence.name"/></p>
+                                <p><strong>Date:</strong> <span t-field="occurrence.date"/></p>
+                                
+                                <div class="mb-3">
+                                    <label for="reason_code" class="form-label">Reason <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="reason_code" name="reason_code" required="">
+                                        <option value="">Select a reason...</option>
+                                        <option value="illness">Illness</option>
+                                        <option value="injury">Injury</option>
+                                        <option value="family">Family Commitment</option>
+                                        <option value="school">School Event</option>
+                                        <option value="vacation">Vacation</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="reason_note" class="form-label">Additional Details (Optional)</label>
+                                    <textarea class="form-control" id="reason_note" name="reason_note" rows="3" placeholder="Provide any additional information..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Report Absence</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- To be continued in next file part... -->
+    </data>
+</odoo>
