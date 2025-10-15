@@ -167,23 +167,7 @@ class AttendanceConfirmationWizard(models.TransientModel):
             vals['walkin_ids'] = cleaned_commands
         
         # Call super with filtered vals
-        result = super().write(vals)
-        
-        # After write, clean up orphaned walk-in players from present_player_ids
-        for wizard in self:
-            # Get current walk-in player IDs
-            walkin_player_ids = set(wizard.walkin_ids.mapped('player_id').ids) if wizard.walkin_ids else set()
-            registered_ids = set(wizard.registered_player_ids.ids)
-            present_ids = set(wizard.present_player_ids.ids)
-            
-            # Orphaned players = present but not registered and not in walk-ins
-            orphaned_ids = present_ids - registered_ids - walkin_player_ids
-            
-            if orphaned_ids:
-                # Remove orphaned players from present_player_ids
-                wizard.present_player_ids = [(3, pid) for pid in orphaned_ids]
-        
-        return result
+        return super().write(vals)
     
     @api.model
     def default_get(self, fields_list):
@@ -204,37 +188,54 @@ class AttendanceConfirmationWizard(models.TransientModel):
     def _compute_counts(self):
         """Calculate attendance counts."""
         for wizard in self:
-            wizard.total_count = len(wizard.registered_player_ids)
-            wizard.present_count = len(wizard.present_player_ids)
-            wizard.pre_reported_count = len(wizard.absence_request_ids)
-            wizard.walkin_count = len(wizard.walkin_ids)
-            
-            # Absent = registered - present (excluding pre-reported)
-            absent_players = wizard.registered_player_ids - wizard.present_player_ids
-            absence_player_ids = wizard.absence_request_ids.mapped('player_id')
-            wizard.absent_count = len(absent_players - absence_player_ids)
+            registered_ids = set(wizard.registered_player_ids.ids)
+            present_ids = set(wizard.present_player_ids.ids)
+            absence_player_ids = set(wizard.absence_request_ids.mapped('player_id').ids)
+
+            wizard.total_count = len(registered_ids)
+            wizard.present_count = len(present_ids)
+            wizard.pre_reported_count = len(absence_player_ids)
+
+            walkin_ids = present_ids - registered_ids
+            wizard.walkin_count = len(walkin_ids)
+
+            absent_registered_ids = registered_ids - present_ids
+            unreported_absent_ids = absent_registered_ids - absence_player_ids
+            wizard.absent_count = len(unreported_absent_ids)
 
     @api.depends('present_count', 'absent_count', 'pre_reported_count', 'total_count', 'walkin_count')
     def _compute_confirmation_message(self):
         """Generate confirmation summary message."""
         for wizard in self:
+            registered_ids = set(wizard.registered_player_ids.ids)
+            present_ids = set(wizard.present_player_ids.ids)
+            registered_present = len(present_ids & registered_ids)
+            walkin_present = len(present_ids - registered_ids)
+            total_registered = wizard.total_count
+
             walkin_row = ""
-            if wizard.walkin_count > 0:
+            if walkin_present > 0:
                 walkin_row = f"""
                         <tr>
-                            <td><strong>Walk-ins:</strong></td>
+                            <td><strong>Walk-ins Present:</strong></td>
                             <td style="text-align: right; color: #17a2b8;">
-                                {wizard.walkin_count} players
+                                {walkin_present} players
                             </td>
                         </tr>
                 """
-            
+
             wizard.confirmation_message = f"""
                 <div style="padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
                     <h4 style="margin-top: 0;">Attendance Summary</h4>
                     <table style="width: 100%; font-size: 14px;">
                         <tr>
-                            <td><strong>Present:</strong></td>
+                            <td><strong>Registered Present:</strong></td>
+                            <td style="text-align: right; color: #28a745;">
+                                <strong>{registered_present}</strong> players
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Present:</strong></td>
                             <td style="text-align: right; color: #28a745;">
                                 <strong>{wizard.present_count}</strong> players
                             </td>
@@ -255,7 +256,7 @@ class AttendanceConfirmationWizard(models.TransientModel):
                         <tr style="border-top: 2px solid #dee2e6;">
                             <td><strong>Total Registered:</strong></td>
                             <td style="text-align: right;">
-                                <strong>{wizard.total_count}</strong> players
+                                <strong>{total_registered}</strong> players
                             </td>
                         </tr>
                     </table>
@@ -289,13 +290,11 @@ class AttendanceConfirmationWizard(models.TransientModel):
                 }
             }
         
-        # Add to walk-ins list
+        # Add to walk-ins list and mark as present
         self.walkin_ids = [(0, 0, {
             'player_id': self.walkin_player_id.id,
             'reason': self.walkin_reason or 'makeup',
         })]
-        
-        # Add to present players list (auto-mark as present)
         self.present_player_ids = [(4, self.walkin_player_id.id)]
         
         # Clear the selection field for next entry
@@ -313,34 +312,59 @@ class AttendanceConfirmationWizard(models.TransientModel):
                 'consider cancelling the session instead.'
             )
         
-        # Create participant records for walk-ins
+        # Create participant records for walk-ins first
         for walkin in self.walkin_ids:
-            self.env['academy.session.participant'].create({
-                'session_id': self.session_id.id,
-                'player_id': walkin.player_id.id,
-                'is_walkin': True,
-                'walkin_reason': walkin.reason,
-                'added_by_id': self.env.user.id,
-            })
+            # Use a server-side check to prevent duplicates if onchange fails
+            if not self.env['academy.session.participant'].search_count([
+                ('session_id', '=', self.session_id.id),
+                ('player_id', '=', walkin.player_id.id)
+            ]):
+                self.env['academy.session.participant'].create({
+                    'session_id': self.session_id.id,
+                    'player_id': walkin.player_id.id,
+                    'is_walkin': True,
+                    'walkin_reason': walkin.reason,
+                    'added_by_id': self.env.user.id,
+                })
         
-        # Refresh session cache to see newly created participants
+        # Refresh session cache to include newly created participants
         self.session_id.invalidate_recordset(['participant_ids'])
         
-        # Process attendance confirmation
+        # Build walk-in payload so session can recognize newly added players
+        walkin_payload = {
+            walkin.player_id.id: {
+                'reason': walkin.reason,
+            }
+            for walkin in self.walkin_ids
+            if walkin.player_id
+        }
+
+        # Process attendance confirmation for ALL present players
+        # The present_player_ids list already contains both registered
+        # and walk-in players thanks to the onchange method.
         result = self.session_id.process_attendance_confirmation(
-            self.present_player_ids.ids
+            self.present_player_ids.ids,
+            walkin_info=walkin_payload
         )
         
         # Return success message with summary
-        walkin_msg = f" (including {len(self.walkin_ids)} walk-ins)" if self.walkin_ids else ""
+        walkin_present = result.get('walkin_present_count', 0)
+        effective_total = result.get('effective_total_count', result.get('total_count', len(self.present_player_ids)))
+        registered_present = result.get('registered_present_count', result['present_count'] - walkin_present)
+        registered_total = result.get('registered_total_count', result.get('total_count', registered_present))
+
+        if walkin_present:
+            walkin_msg = f" including {walkin_present} walk-in{'s' if walkin_present != 1 else ''}"
+        else:
+            walkin_msg = ""
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Attendance Confirmed!',
                 'message': (
-                    f"✅ {result['present_count']} of {result['total_count']} players present{walkin_msg}. "
-                    f"Session ready for billing."
+                    f"✅ {result['present_count']} of {effective_total} attendees present{walkin_msg}. "
+                    f"Registered: {registered_present}/{registered_total}. Session ready for billing."
                 ),
                 'type': 'success',
                 'sticky': False,

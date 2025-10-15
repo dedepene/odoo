@@ -438,15 +438,18 @@ class AcademySessionOccurrence(models.Model):
             'context': self.env.context,
         }
 
-    def process_attendance_confirmation(self, present_player_ids):
+    def process_attendance_confirmation(self, present_player_ids, walkin_info=None):
         """
         Process attendance confirmation from wizard.
         Creates attendance records ONLY for players marked present.
         
         Args:
             present_player_ids: List of player IDs who are present
+            walkin_info: Optional dict keyed by player_id with metadata (e.g. reason)
         """
         self.ensure_one()
+        walkin_info = walkin_info or {}
+        walkin_player_ids = set(int(pid) for pid in walkin_info.keys())
         
         # Validate
         if self.attendance_status == 'confirmed':
@@ -454,30 +457,72 @@ class AcademySessionOccurrence(models.Model):
         
         registered_players = self._get_registered_players()
         present_players = self.env['academy.player'].browse(present_player_ids)
-        
-        # Validate present_player_ids are subset of registered (plus walk-ins)
-        walk_ins = self.participant_ids.filtered(lambda p: p.is_walkin).mapped('player_id')
-        all_eligible = registered_players | walk_ins
-        
-        if not set(present_player_ids).issubset(set(all_eligible.ids)):
-            raise ValidationError('Some players are not registered for this session.')
+
+        participant_model = self.env['academy.session.participant']
+        participant_records = self.participant_ids
+        participants_by_player = {}
+        for participant in participant_records:
+            participant_player = participant.player_id  # type: ignore[attr-defined]
+            if participant_player:
+                participants_by_player[participant_player.id] = participant
+
+        registered_player_ids = set(registered_players.ids)
+
+        # Ensure participant rows exist for incoming walk-ins before validation, so they
+        # count as eligible attendees during the same confirmation cycle.
+        for walkin_player_id in walkin_player_ids:
+            if walkin_player_id in participants_by_player:
+                continue
+            participant = participant_model.create({
+                'session_id': self.id,
+                'player_id': walkin_player_id,
+                'is_walkin': True,
+                'walkin_reason': walkin_info.get(walkin_player_id, {}).get('reason'),
+                'added_by_id': self.env.user.id,
+            })
+            participants_by_player[walkin_player_id] = participant
+            participant_records |= participant
         
         # Create attendance records ONLY for present players
         attendance_vals = []
         for player in present_players:
-            # Check if walk-in
-            walk_in_participant = self.participant_ids.filtered(
-                lambda p: p.player_id == player and p.is_walkin
-            )
-            
+            walk_in_participant = participants_by_player.get(player.id)
+            walkin_payload = walkin_info.get(player.id, {}) if walkin_info else {}
+            desired_reason = walkin_payload.get('reason')
+
+            if player.id not in registered_player_ids and not walk_in_participant:
+                # Treat as walk-in even if payload missing (fallback to 'other').
+                if not desired_reason:
+                    desired_reason = 'other'
+                walk_in_participant = participant_model.create({
+                    'session_id': self.id,
+                    'player_id': player.id,
+                    'is_walkin': True,
+                    'walkin_reason': desired_reason,
+                    'added_by_id': self.env.user.id,
+                })
+                participants_by_player[player.id] = walk_in_participant
+                participant_records |= walk_in_participant
+
+            is_walkin = bool(
+                walk_in_participant and walk_in_participant.is_walkin  # type: ignore[attr-defined]
+            ) or player.id in walkin_player_ids or player.id not in registered_player_ids
+
+            if desired_reason:
+                walkin_reason = desired_reason
+            elif is_walkin and walk_in_participant:
+                walkin_reason = walk_in_participant.walkin_reason  # type: ignore[attr-defined]
+            else:
+                walkin_reason = False
+
             attendance_vals.append({
                 'session_id': self.id,
                 'player_id': player.id,
                 'state': 'present',
                 'marked_by_id': self.env.user.id,
                 'confirmation_time': fields.Datetime.now(),
-                'is_walkin': bool(walk_in_participant),
-                'walkin_reason': walk_in_participant.walkin_reason if walk_in_participant else False,
+                'is_walkin': is_walkin,
+                'walkin_reason': walkin_reason if is_walkin else False,
             })
         
         if attendance_vals:
@@ -487,9 +532,13 @@ class AcademySessionOccurrence(models.Model):
         self.write({'attendance_status': 'confirmed'})
         
         # Calculate counts for audit
+        registered_player_ids = set(registered_players.ids)
         present_count = len(present_player_ids)
-        total_count = len(registered_players)
-        absent_count = total_count - present_count
+        registered_present_count = len([pid for pid in present_player_ids if pid in registered_player_ids])
+        walkin_present_count = present_count - registered_present_count
+        registered_total = len(registered_players)
+        effective_total = registered_total + walkin_present_count
+        absent_count = max(0, registered_total - registered_present_count)
         
         # Account for pre-reported absences
         absence_requests = self.env['academy.session.absence'].search([
@@ -497,21 +546,26 @@ class AcademySessionOccurrence(models.Model):
             ('state', 'in', ['reported', 'acknowledged'])
         ])
         pre_reported = len(absence_requests)
-        unreported_absent = absent_count - pre_reported
+        unreported_absent = max(0, absent_count - pre_reported)
         
         # Post audit trail
-        self.message_post(
+        self.message_post(  # type: ignore[attr-defined]
             body=f"Attendance confirmed by {self.env.user.name}. "
-                 f"{present_count} of {total_count} players present. "
+                 f"Registered present: {registered_present_count}/{registered_total}. "
+                 f"Walk-ins: {walkin_present_count}. "
                  f"Unreported absences: {unreported_absent}. "
                  f"Pre-reported absences: {pre_reported}."
         )
         
         return {
             'present_count': present_count,
+            'registered_present_count': registered_present_count,
+            'walkin_present_count': walkin_present_count,
             'unreported_absent': max(0, unreported_absent),
             'pre_reported': pre_reported,
-            'total_count': total_count
+            'total_count': registered_total,
+            'registered_total_count': registered_total,
+            'effective_total_count': effective_total
         }
 
     def action_add_walkin_player(self):
