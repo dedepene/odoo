@@ -365,8 +365,8 @@ Schedule:
 - [x] Suspension handling
 
 Attendance:
-- [ ] Absence request portal form (guardian notification)
-- [ ] Coach checks-in/out players on the spot (mobile interface)
+- [x] Absence request portal form (guardian notification)
+- [x] Coach checks-in/out players on the spot (mobile interface)
 
 Billing & Consumables:
 - [ ] Billing item pipeline

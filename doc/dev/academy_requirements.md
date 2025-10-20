@@ -42,6 +42,14 @@ Use this document to put together a roadmap and top-level design to modify this 
   
 3. Billing
   - each guardian should receive a monthly invoice with services rendered from the tennis academy which is to include: practice sessions, bar/cafe consumables, pro shop purchases, extras
+  - guardians should be notified via email when the invoice is generated and available in their portal
+  - the invoice should be available in the guardian's portal
+  - under Academy -> Configuration there should be a Billing section where the various pricing options are configured. These include:
+    - group practice session price
+    - individual practice session price
+    - physical activities session price
+    - individual physical activities session price
+  - 
 
 4. Reports
   - a report should be available to show the attendance of each player for the month
