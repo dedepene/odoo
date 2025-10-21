@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_academy_billing_template_admin,academy.billing.template.admin,model_academy_billing_template,academy_core.group_academy_site_admin,1,1,1,1
+access_academy_billing_template_head,academy.billing.template.head,model_academy_billing_template,academy_core.group_academy_head_coach,1,0,0,0
+access_academy_billing_item_admin,academy.billing.item.admin,model_academy_billing_item,academy_core.group_academy_site_admin,1,1,1,1
+access_academy_billing_item_head_coach,academy.billing.item.head_coach,model_academy_billing_item,academy_core.group_academy_head_coach,1,0,0,0
+access_academy_billing_item_portal,academy.billing.item.portal,model_academy_billing_item,base.group_portal,1,0,0,0
+access_academy_attendance_billing_admin,academy.attendance.billing.admin,model_academy_attendance_billing,academy_core.group_academy_site_admin,1,1,1,1

@@ -34,6 +34,7 @@ class AcademySessionAbsence(models.Model):
     state = fields.Selection([
         ('reported', 'Reported'),
         ('acknowledged', 'Acknowledged by Coach'),
+        ('credited', 'Credited'),
         ('withdrawn', 'Withdrawn'),
     ], string='Status', default='reported', tracking=True)
     
@@ -42,6 +43,37 @@ class AcademySessionAbsence(models.Model):
                                  readonly=True)
     report_date = fields.Datetime(string='Report Date', default=fields.Datetime.now,
                                  readonly=True)
+    acknowledged_by_id = fields.Many2one(
+        'res.users',
+        string='Acknowledged By',
+        tracking=True,
+        readonly=True
+    )
+    acknowledgment_date = fields.Datetime(
+        string='Acknowledged On',
+        readonly=True
+    )
+    credit_move_id = fields.Many2one(
+        'account.move',
+        string='Credit Note',
+        readonly=True,
+        copy=False
+    )
+    credit_amount = fields.Monetary(
+        string='Credit Amount',
+        readonly=True,
+        currency_field='currency_id'
+    )
+    credited_date = fields.Datetime(
+        string='Credited On',
+        readonly=True
+    )
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        default=lambda self: self.env.company.currency_id,
+        readonly=True
+    )
     
     @api.depends('player_id', 'occurrence_id')
     def _compute_name(self):
@@ -82,7 +114,13 @@ class AcademySessionAbsence(models.Model):
     def action_acknowledge(self):
         """Coach acknowledges the absence."""
         for absence in self:
-            absence.write({'state': 'acknowledged'})
+            if absence.state != 'reported':
+                continue
+            absence.write({
+                'state': 'acknowledged',
+                'acknowledged_by_id': self.env.user.id,
+                'acknowledgment_date': fields.Datetime.now(),
+            })
             absence.message_post(body='Absence acknowledged by coach')
         return True
 
@@ -92,6 +130,19 @@ class AcademySessionAbsence(models.Model):
             # Can only withdraw before session starts
             if absence.occurrence_id.start_datetime < fields.Datetime.now():
                 raise ValidationError('Cannot withdraw absence after session has started!')
+            if absence.state == 'credited':
+                raise ValidationError('Cannot withdraw an absence that has already been credited.')
             absence.write({'state': 'withdrawn'})
             absence.message_post(body='Absence withdrawn')
         return True
+
+    def mark_as_credited(self, credit_move, amount):
+        """Mark the absence as credited with reference to credit note."""
+        self.ensure_one()
+        self.write({
+            'state': 'credited',
+            'credit_move_id': credit_move.id,
+            'credit_amount': amount,
+            'credited_date': fields.Datetime.now(),
+        })
+        self.message_post(body='Credit note issued for acknowledged absence')

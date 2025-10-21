@@ -21,7 +21,6 @@
     'data': [
         'security/ir.model.access.csv',
         'data/session_type_data.xml',
-        'data/attendance_billing_cron.xml',
         'views/academy_court_views.xml',
         'views/academy_session_template_views.xml',
         'views/academy_session_occurrence_views.xml',

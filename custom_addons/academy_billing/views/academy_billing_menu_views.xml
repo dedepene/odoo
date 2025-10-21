@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <menuitem id="menu_academy_billing_root"
+                  name="Billing"
+                  parent="academy_core.menu_academy_root"
+                  sequence="40"
+                  groups="academy_core.group_academy_site_admin,academy_core.group_academy_head_coach"/>
+
+        <menuitem id="menu_academy_billing_templates"
+                  name="Billing Templates"
+                  parent="academy_core.menu_academy_configuration"
+                  action="academy_billing.action_academy_billing_template"
+                  sequence="40"
+                  groups="academy_core.group_academy_site_admin"/>
+
+        <menuitem id="menu_academy_billing_ad_hoc"
+                  name="Ad-Hoc Charges"
+                  parent="menu_academy_billing_root"
+                  action="academy_billing.action_academy_billing_item_ad_hoc"
+                  sequence="10"
+                  groups="academy_core.group_academy_site_admin"/>
+    </data>
+</odoo>

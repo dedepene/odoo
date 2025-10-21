@@ -11,6 +11,8 @@
                 <field name="reason_code"/>
                 <field name="state" widget="badge"/>
                 <field name="report_date"/>
+                <field name="acknowledgment_date" optional="hide"/>
+                <field name="credit_amount" optional="show"/>
             </list>
         </field>
     </record>
@@ -21,11 +23,12 @@
         <field name="arch" type="xml">
             <form string="Absence Report">
                 <header>
-                    <button name="action_acknowledge" string="Acknowledge" type="object" 
-                            class="oe_highlight" invisible="state != 'reported'"/>
-                    <button name="action_withdraw" string="Withdraw" type="object" 
-                            invisible="state != 'reported'"/>
-                    <field name="state" widget="statusbar"/>
+            <button name="action_acknowledge" string="Acknowledge" type="object"
+                class="btn-primary"
+                modifiers="{'invisible': [('state', '!=', 'reported')]}"/>
+            <button name="action_withdraw" string="Withdraw" type="object"
+                modifiers="{'invisible': [('state', '!=', 'reported')]}"/>
+                    <field name="state" widget="statusbar" statusbar_visible="reported,acknowledged,credited"/>
                 </header>
                 <sheet>
                     <group>
@@ -37,6 +40,11 @@
                         <group>
                             <field name="reporter_id"/>
                             <field name="report_date"/>
+                            <field name="acknowledged_by_id" readonly="1"/>
+                            <field name="acknowledgment_date" readonly="1"/>
+                            <field name="credit_move_id" readonly="1"/>
+                            <field name="credit_amount" readonly="1"/>
+                            <field name="credited_date" readonly="1"/>
                         </group>
                     </group>
                     <group>

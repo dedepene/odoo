@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_academy_billing_item_tree" model="ir.ui.view">
+            <field name="name">academy.billing.item.tree</field>
+            <field name="model">academy.billing.item</field>
+            <field name="arch" type="xml">
+                <list string="Billing Items">
+                    <field name="name"/>
+                    <field name="origin_type" widget="badge"/>
+                    <field name="guardian_id"/>
+                    <field name="player_id" optional="hide"/>
+                    <field name="charge_date"/>
+                    <field name="session_id" optional="hide"/>
+                    <field name="session_type" optional="hide"/>
+                    <field name="description" optional="show"/>
+                    <field name="amount" sum="Total Amount"/>
+                    <field name="currency_id" column_invisible="1"/>
+                    <field name="is_walkin" widget="boolean_toggle" optional="hide" readonly="1"/>
+                    <field name="state" widget="badge"
+                           decoration-info="state=='pending'"
+                           decoration-success="state=='approved'"
+                           decoration-warning="state=='invoiced'"
+                           decoration-muted="state=='cancelled'"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_academy_billing_item_form" model="ir.ui.view">
+            <field name="name">academy.billing.item.form</field>
+            <field name="model">academy.billing.item</field>
+            <field name="arch" type="xml">
+                <form string="Billing Item">
+                    <header>
+                        <button name="action_approve" string="Approve" type="object"
+                                class="btn-primary" invisible="state != 'pending'"/>
+                        <button name="action_cancel" string="Cancel" type="object"
+                                class="btn-secondary" invisible="state not in ['pending', 'approved']"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,approved,invoiced"/>
+                    </header>
+                    <sheet>
+                        <widget name="web_ribbon" title="Walk-In" bg_color="text-bg-warning" invisible="not is_walkin"/>
+                        <widget name="web_ribbon" title="Auto-Generated" bg_color="text-bg-info" invisible="not created_by_cron"/>
+                        <group>
+                            <group>
+                                <field name="origin_type"/>
+                                <field name="guardian_id"/>
+                                <field name="player_id" modifiers="{'required': [('origin_type', '=', 'attendance')], 'readonly': [('origin_type', '!=', 'attendance')]}"/>
+                                <field name="session_id" modifiers="{'invisible': [('origin_type', '!=', 'attendance')], 'required': [('origin_type', '=', 'attendance')]}"/>
+                                <field name="session_date" modifiers="{'invisible': [('origin_type', '!=', 'attendance')]}"/>
+                                <field name="session_type" modifiers="{'invisible': [('origin_type', '!=', 'attendance')]}"/>
+                                <field name="attendance_id" modifiers="{'invisible': [('origin_type', '!=', 'attendance')]}"/>
+                            </group>
+                            <group>
+                                <field name="charge_date" modifiers="{'required': [('origin_type', 'in', ['extra', 'consumable'])]}"/>
+                                <field name="description" modifiers="{'required': [('origin_type', 'in', ['extra', 'consumable'])]}"/>
+                                <field name="amount"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="is_walkin" readonly="1"/>
+                                <field name="walkin_reason" invisible="not is_walkin" readonly="1"/>
+                                <field name="invoice_id" readonly="1"/>
+                                <field name="invoice_line_id" invisible="1"/>
+                                <field name="created_by_cron" invisible="1"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Notes" name="notes">
+                                <field name="notes" placeholder="Billing notes..."/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_academy_billing_item_search" model="ir.ui.view">
+            <field name="name">academy.billing.item.search</field>
+            <field name="model">academy.billing.item</field>
+            <field name="arch" type="xml">
+                <search>
+                    <field name="player_id"/>
+                    <field name="guardian_id"/>
+                    <field name="session_id"/>
+                    <field name="origin_type"/>
+                    <filter name="filter_pending" string="Pending" domain="[('state', '=', 'pending')]"/>
+                    <filter name="filter_approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+                    <filter name="filter_invoiced" string="Invoiced" domain="[('state', '=', 'invoiced')]"/>
+                    <filter name="filter_walkin" string="Walk-In" domain="[('is_walkin', '=', True)]"/>
+                    <separator/>
+                    <filter name="filter_origin_attendance" string="Attendance" domain="[('origin_type', '=', 'attendance')]"/>
+                    <filter name="filter_origin_extra" string="Ad-Hoc Extra" domain="[('origin_type', '=', 'extra')]"/>
+                    <filter name="filter_origin_consumable" string="Consumable" domain="[('origin_type', '=', 'consumable')]"/>
+                    <separator/>
+                    <filter name="filter_this_month" string="This Month"
+                            domain="[('charge_date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                     ('charge_date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                    <separator/>
+                    <filter name="group_player" string="Player" context="{'group_by': 'player_id'}"/>
+                    <filter name="group_guardian" string="Guardian" context="{'group_by': 'guardian_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_origin" string="Origin" context="{'group_by': 'origin_type'}"/>
+                    <filter name="group_date" string="Charge Date" context="{'group_by': 'charge_date'}"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_academy_billing_item" model="ir.actions.act_window">
+            <field name="name">Billing Items</field>
+            <field name="res_model">academy.billing.item</field>
+            <field name="view_mode">list,form</field>
+            <field name="context">{'search_default_filter_pending': 1, 'search_default_filter_this_month': 1}</field>
+        </record>
+
+        <record id="action_academy_billing_item_ad_hoc" model="ir.actions.act_window">
+            <field name="name">Ad-Hoc Charges</field>
+            <field name="res_model">academy.billing.item</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('origin_type', 'in', ['extra', 'consumable'])]</field>
+            <field name="context">{'default_origin_type': 'extra', 'search_default_filter_origin_extra': 1}</field>
+        </record>
+    </data>
+</odoo>
