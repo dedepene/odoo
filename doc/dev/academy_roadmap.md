@@ -145,13 +145,30 @@ Features:
 - Absence requests: Separate notification model (does not create attendance records).
 - Check-in methods: (a) Kiosk/tablet self-service (primary), (b) Coach supplemental check-in (mobile), (c) Optional PIN for elevated player user (future).
 - Billing integration: Only checked-in players (with attendance records) are billed.
+- `academy.session.absence`: Records guardian-reported absences, with states for 'reported', 'acknowledged', and 'credited'.
 
 ### 6.4 `academy_billing`
 Features:
-- Billing Item creation from attendance (present) with pricing logic (group vs individual vs physical) referencing configurable price matrix.
-- Monthly cron aggregates items by primary guardian → creates draft invoices (grouped by category lines).
-- Traceability: invoice line has Many2one to billing item; billing item state set to invoiced post creation.
-- Adjustments: Manual credit/debit note wizard referencing original billing items.
+- **Purpose**: Manage the monthly pre-paid billing cycle, including invoice generation, credit note reconciliation, and ad-hoc charges.
+- **Core Models**:
+- `academy.billing.template`: Defines the rules for billing, such as the day of the month to generate invoices and the payment due terms. A default "Monthly Pre-Paid" template will be included.
+- `account.move`: Used for both pre-paid invoices (`out_invoice`) and credit notes (`out_refund`).
+- `academy.billing.item`: Primarily used for tracking ad-hoc charges (e.g., pro-shop items) to be added to the next monthly invoice.
+- **Flow**:
+1.  **Configuration**:
+    *   A Site Admin configures the `academy.billing.template` (e.g., invoice on the 1st, due in 10 days).
+    *   Each `academy.session` (session template) is linked to a billing template.
+2.  **Start-of-Month Invoicing**:
+    *   A daily cron job (`cron_generate_monthly_prepaid_invoices`) runs.
+    *   On the day specified by the billing template (e.g., Nov 1st), it gathers all scheduled sessions for the upcoming month for each player.
+    *   It also finds any available credit notes from the previous month's reconciliation.
+    *   It generates a single draft `account.move` (invoice) for each guardian, including line items for all scheduled sessions and applying the credits.
+    *   The invoice is posted and a notification is sent to the guardian.
+3.  **End-of-Month Reconciliation**:
+    *   A monthly cron job (`cron_reconcile_monthly_absences`) runs on the 1st of the month for the month that just ended (e.g., on Dec 1st for November).
+    *   It queries all `academy.session.absence` records that have been `acknowledged` by a coach.
+    *   For each acknowledged absence, it generates a new `account.move` (credit note) of type `out_refund`.
+    *   These credit notes are now available to be applied to the next month's invoice.
 
 ### 6.5 `academy_consumables`
 Features:

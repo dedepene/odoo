@@ -15,23 +15,26 @@ This document details the implementation of the comprehensive attendance managem
 ### Key Features Implemented
 1. ✅ Coach attendance confirmation with prepopulated rosters
 2. ✅ Walk-in player addition with reason tracking
-3. ✅ Attendance-driven billing (no attendance record = no billing)
-4. ✅ Automated monthly billing generation via cron
-5. ✅ Security and access control
-6. ✅ Backend views and wizards
+3. ✅ Attendance tracking for absence/credit reconciliation
+4. ✅ Security and access control
+5. ✅ Backend views and wizards
 
 ### Features Pending
-- Guardian portal attendance history views (documented but not implemented)
-- Admin reporting pivot tables and analytics (documented but not implemented)
+- **Pre-Paid Billing System**: The billing logic described in this document is now **DEPRECATED**. A new pre-paid and reconciliation model has been designed. See the `doc/dev/billing/academy_billing_user_stories.md` document for the new specification.
+- Guardian portal attendance history views
+- Admin reporting pivot tables and analytics
 
 ---
 
 ## Architecture Overview
 
+> [!WARNING]
+> The billing-related models and logic (`academy.billing.item`, `academy.attendance.billing`) described below are **DEPRECATED** as of October 21, 2025. They were part of an attendance-driven, post-paid billing system. The new architecture is a **pre-paid and reconciliation model**. Refer to `doc/dev/billing/academy_billing_user_stories.md` for the current design. The `academy.attendance` model remains critical for tracking presence and reconciling absences.
+
 ### Data Models
 
 #### 1. `academy.attendance`
-**Purpose**: Tracks coach-confirmed present players only. No record = player was absent.
+**Purpose**: Tracks coach-confirmed present players only. This record is the source of truth for confirming a player's presence at a session, which is vital for the end-of-month reconciliation process.
 
 **Key Fields**:
 - `session_id` (Many2one → academy.session.occurrence) - Required
@@ -41,22 +44,21 @@ This document details the implementation of the comprehensive attendance managem
 - `confirmation_time` (Datetime) - When confirmed
 - `is_walkin` (Boolean) - Walk-in player flag
 - `walkin_reason` (Selection) - Trial, makeup, advancement, other
-- `billing_item_id` (Many2one → academy.billing.item) - Link to billing
+- `billing_item_id` (Many2one → academy.billing.item) - **DEPRECATED**: This link is no longer used in the new billing model.
 
 **SQL Constraints**:
 - Unique constraint on (session_id, player_id) - One attendance per player per session
 
 **Business Rules**:
-- Created ONLY when coach marks player as present during confirmation
-- Cannot be deleted if billed (linked to billing_item_id)
-- Player must be eligible (in skill group or walk-in)
+- Created ONLY when coach marks player as present during confirmation.
+- A player with no `academy.attendance` record for a session is considered absent. This is cross-referenced with `academy.session.absence` records to determine if the absence was excused.
 
 **File**: `custom_addons/academy_schedule/models/academy_attendance.py` (lines 1-185)
 
 ---
 
 #### 2. `academy.session.participant`
-**Purpose**: Tracks all session participants including walk-ins (temporary session assignments).
+**Purpose**: Tracks all session participants including walk-ins (temporary session assignments). This model remains unchanged.
 
 **Key Fields**:
 - `session_id` (Many2one → academy.session.occurrence) - Required
@@ -78,72 +80,15 @@ This document details the implementation of the comprehensive attendance managem
 
 ---
 
-#### 3. `academy.billing.item`
-**Purpose**: Billing items generated from confirmed attendance for invoicing.
-
-**Key Fields**:
-- `player_id` (Many2one → academy.player) - Required
-- `session_id` (Many2one → academy.session.occurrence) - Required
-- `attendance_id` (Many2one → academy.attendance) - Required, source attendance
-- `amount` (Monetary) - Session price
-- `primary_guardian_id` (Many2one → res.partner) - Computed from player
-- `is_walkin` (Boolean) - Inherited from attendance
-- `walkin_reason` (Selection) - Inherited from attendance
-- `state` (Selection) - pending, approved, invoiced, cancelled
-- `invoice_line_id` (Many2one → account.move.line) - Link to invoice
-- `created_by_cron` (Boolean) - Auto-generated flag
-
-**SQL Constraints**:
-- Unique constraint on attendance_id - One billing item per attendance
-- Amount must be positive or zero
-
-**Compute Methods**:
-- `_compute_primary_guardian()` - Gets player's primary guardian for billing grouping
-
-**Actions**:
-- `action_approve()` - Admin approves billing item
-- `action_cancel()` - Admin cancels billing item (if not invoiced)
-
-**Business Rules**:
-- Created ONLY for confirmed attendance records (coach-validated present players)
-- Walk-in trials are free ($0), others use normal pricing
-- Cannot delete if invoiced
-- Grouped by primary_guardian_id for invoice generation
+#### 3. `academy.billing.item` (DEPRECATED)
+**Purpose**: **(Old Logic)** Billing items generated from confirmed attendance for invoicing. **(New Logic)** This model may be repurposed for ad-hoc charges, but it is no longer central to session billing.
 
 **File**: `custom_addons/academy_schedule/models/academy_attendance.py` (lines 237-430)
 
 ---
 
-#### 4. `academy.attendance.billing`
-**Purpose**: Billing processor for automated billing generation.
-
-**Methods**:
-- `_get_session_pricing(session)` - Returns price based on session type
-  - Group tennis: $25 (configurable)
-  - Group physical: $20 (configurable)
-  - Individual tennis: $60 (configurable)
-  - Individual physical: $40 (configurable)
-
-- `_get_walkin_pricing(attendance)` - Returns walk-in price
-  - Trial: $0 (free)
-  - Others: Normal session price
-
-- `generate_billing_items(date_from, date_to)` - Main billing generation
-  - Queries unbilled attendance records (billing_item_id = False)
-  - Creates billing items with appropriate pricing
-  - Links billing_item_id to attendance record
-  - Returns summary with errors
-
-- `cron_generate_monthly_billing()` - Scheduled billing job
-  - Runs monthly (1st of each month at 2 AM)
-  - Processes previous month's attendance
-  - Sends error notifications to admins
-
-**Configuration Parameters**:
-- `academy.billing.group_tennis_price` (default: 25.00)
-- `academy.billing.group_physical_price` (default: 20.00)
-- `academy.billing.individual_tennis_price` (default: 60.00)
-- `academy.billing.individual_physical_price` (default: 40.00)
+#### 4. `academy.attendance.billing` (DEPRECATED)
+**Purpose**: **(Old Logic)** Billing processor for automated post-paid billing generation. This model and its methods are fully deprecated.
 
 **File**: `custom_addons/academy_schedule/models/academy_attendance.py` (lines 432-604)
 
@@ -356,36 +301,11 @@ Academy
 
 ## Cron Jobs
 
-### Monthly Billing Cron
+### Monthly Billing Cron (DEPRECATED)
 **File**: `custom_addons/academy_schedule/data/attendance_billing_cron.xml`
 
-**Configuration**:
-- **Name**: "Academy: Generate Monthly Billing from Attendance"
-- **Model**: academy.attendance.billing
-- **Method**: `cron_generate_monthly_billing()`
-- **Frequency**: Monthly (1st of month at 2:00 AM)
-- **Active**: Yes
-
-**What It Does**:
-1. Calculates date range: previous month (e.g., Sept 1-30 when running Oct 1)
-2. Queries unbilled attendance records:
-   - `billing_item_id = False`
-   - `session_id.attendance_status = 'confirmed'`
-   - Date range: last month
-3. For each attendance:
-   - Determines pricing (session type, walk-in status)
-   - Gets primary guardian
-   - Creates `academy.billing.item`
-   - Links billing_item_id back to attendance
-4. Logs summary and errors
-5. Emails admins if errors occurred
-
-**Manual Execution**:
-```python
-# In Odoo shell or scheduled actions
-model = env['academy.attendance.billing']
-summary = model.generate_billing_items(date_from='2025-09-01', date_to='2025-09-30')
-```
+> [!IMPORTANT]
+> This cron job, which generates billing items from attendance, is **DEPRECATED**. The new system uses two separate cron jobs: one for generating pre-paid invoices at the start of the month, and another for reconciling acknowledged absences to create credit notes at the end of the month. See `doc/dev/billing/academy_billing_user_stories.md` for details.
 
 ---
 
@@ -393,131 +313,85 @@ summary = model.generate_billing_items(date_from='2025-09-01', date_to='2025-09-
 
 ### Coach Attendance Confirmation Flow
 
+The flow for a coach confirming attendance remains largely the same. The key difference is the *consequence* of the data. Creating an `academy.attendance` record no longer directly triggers a billable item. Instead, it serves as a positive confirmation of presence, which is used during the end-of-month reconciliation to differentiate between a "no-show" (absent, but no `academy.session.absence` record) and an attended session.
+
 ```
 1. Session scheduled (state='planned')
    ├─> Roster generated from skill_group_id or player_ids
    └─> Absence requests recorded by guardians
 
-2. Session start time approaches (within 15 min)
+2. Session start time approaches
    └─> Coach opens "Today's Sessions"
 
 3. Coach clicks "Confirm Attendance" on session
    ├─> Wizard opens with prepopulated roster
    ├─> All players checked (☑️) by default
    ├─> Pre-reported absences displayed separately
-   ├─> Walk-In Players section available for adding non-registered players
+   ├─> Walk-In Players section available
    └─> Coach unchecks absent players (❌)
 
-4. Coach adds walk-in players (optional):
-   ├─> In "Walk-In Players" section, search for player
-   ├─> Player display: [Skill Group] Name (Guardian if duplicate)
-   ├─> Select player from dropdown
-   ├─> Choose reason: trial (free) / makeup / advancement / other
-   ├─> Player added to walk-ins list
-   └─> Player automatically marked present (checked)
+4. Coach adds walk-in players (optional)
+   └─> Process remains the same.
 
 5. Coach clicks "Confirm Attendance" button
-   ├─> Validation: At least one player present
-   ├─> ⚠️ **TESTING MODE**: Time window validation disabled (normally 15 min before to 30 min after)
-   ├─> System creates participant records for walk-ins
-   └─> System creates attendance records for ALL present players (registered + walk-ins)
+   ├─> System creates `academy.attendance` records for ALL present players.
+   └─> NO `academy.billing.item` is created at this stage.
 
 6. Session attendance_status changes to 'confirmed'
-   ├─> Chatter message: "Attendance confirmed by Coach. X of Y players present (including Z walk-ins)."
-   └─> Ready for billing
-
-7. End of month: Billing cron runs
-   ├─> Queries confirmed sessions, unbilled attendance
-   ├─> Creates billing items for each attendance record
-   ├─> Walk-ins billed based on reason: trial=$0, others=normal price
-   └─> Groups by primary guardian for invoicing
+   └─> Data is now ready for end-of-month reconciliation.
 ```
 
 ### Walk-In Player Flow (Integrated)
 
-```
-1. Unregistered player shows up at session
-   └─> Coach opens "Confirm Attendance" wizard
+The walk-in flow is unchanged. However, how walk-ins are billed is now handled by the new pre-paid system. A walk-in for a trial might still be free, but a walk-in for a makeup session is effectively already paid for. Other walk-ins would likely be handled via "Ad-Hoc Charges" as defined in the new billing user stories.
 
-2. In "Walk-In Players" section:
-   ├─> Coach types to search for player (e.g. "Дал")
-   ├─> Dropdown shows: [Skill Group] Player Name
-   └─> If duplicates: [Skill Group] Player Name (Guardian Name)
-
-3. Coach selects player from dropdown
-   ├─> Selects reason: trial (free) / makeup / advancement / other
-   └─> Player automatically added to walk-ins list
-
-4. Player marked present automatically
-   ├─> Appears in walk-ins list with skill group and reason
-   ├─> Also included in present_player_ids (cannot be unchecked)
-   └─> Can be removed from walk-ins list (delete button) before confirming
-
-5. Coach confirms attendance
-   ├─> System creates participant record (is_walkin=True, walkin_reason=reason)
-   ├─> System creates attendance record (state='present', is_walkin=True)
-   └─> Walk-in included in present count
-
-6. Walk-in appears in attendance records with walk-in flag (🚶)
-   └─> Flagged for billing review (trials = free, others = normal price)
-```
-
-### Billing Generation Flow
+### Billing Generation Flow (DEPRECATED)
 
 ```
-1. Cron runs monthly (1st of month at 2 AM)
-   └─> Processes previous month
+The entire post-paid billing flow described previously is DEPRECATED.
 
-2. Query unbilled attendance
-   ├─> billing_item_id = False
-   ├─> session_id.attendance_status = 'confirmed'
-   └─> Date range: last month
+The new flow is:
 
-3. For each attendance record:
-   ├─> Determine price:
-   │   ├─> Walk-in trial? → $0
-   │   ├─> Group tennis? → $25
-   │   ├─> Group physical? → $20
-   │   ├─> Individual tennis? → $60
-   │   └─> Individual physical? → $40
-   ├─> Get primary guardian
-   ├─> Create academy.billing.item
-   └─> Link billing_item_id to attendance
+1. START of Month (e.g., Nov 1st):
+   ├─> Cron job runs (`cron_generate_monthly_prepaid_invoices`).
+   ├─> System finds all players' scheduled sessions for November.
+   ├─> System checks for available credits from October's reconciliation.
+   ├─> Generates one invoice per guardian for all of November's sessions, applying any credits.
+   └─> Invoice is sent.
 
-4. Group billing items by primary_guardian_id
-   └─> Create draft invoices (or add to existing monthly invoice)
+2. DURING Month (e.g., Nov 1st - 30th):
+   ├─> Guardians report absences (`academy.session.absence` created).
+   ├─> Coaches confirm attendance (`academy.attendance` created for present players).
+   ├─> Coaches "Acknowledge" reported absences.
 
-5. Admin reviews billing items
-   ├─> Approve walk-ins with special pricing
-   └─> Cancel any errors
-
-6. Invoice sent to guardians
-   └─> Payment workflow (existing accounting module)
+3. END of Month (e.g., Dec 1st):
+   ├─> Cron job runs (`cron_reconcile_monthly_absences`).
+   ├─> System finds all 'acknowledged' absences from November.
+   ├─> For each one, a credit note (`account.move` of type `out_refund`) is created.
+   └─> These credits are now available to be applied to the December invoice.
 ```
 
-### Key Principle: NO ATTENDANCE = NO BILLING
+### Key Principle: Pre-Paid First, Reconcile Later
+
+The core principle has shifted from "No Attendance = No Billing" to a pre-paid model with credits for excused absences.
 
 ```
 Scenario 1: Player attends
-  ├─> Coach checks player in roster (☑️)
-  ├─> Attendance record created
-  └─> Billing item created → BILLED ✅
+  ├─> Guardian was pre-billed for the session.
+  ├─> Coach marks player as present (☑️) -> `academy.attendance` record created.
+  └─> At month-end, nothing to reconcile for this session. The pre-payment is kept. ✅
 
-Scenario 2: Player reports absence beforehand
-  ├─> Guardian submits absence request
-  ├─> Player NOT in coach's roster (shown separately)
-  ├─> NO attendance record created
-  └─> NO billing item created → NOT BILLED ❌
+Scenario 2: Player has an excused, acknowledged absence
+  ├─> Guardian was pre-billed for the session.
+  ├─> Guardian reports absence -> `academy.session.absence` created.
+  ├─> Coach "Acknowledges" the absence.
+  └─> At month-end, a credit note is generated for this session. ✅
 
-Scenario 3: Player absent (unreported)
-  ├─> Coach unchecks player in roster (❌)
-  ├─> NO attendance record created
-  └─> NO billing item created → NOT BILLED ❌
-
-Scenario 4: No-show (not marked either way)
-  ├─> Player on roster but coach doesn't mark
-  ├─> Treated as absent (no attendance record)
-  └─> NOT BILLED ❌
+Scenario 3: Player is a no-show (unreported absence)
+  ├─> Guardian was pre-billed for the session.
+  ├─> Coach marks player as absent (❌) -> NO `academy.attendance` record.
+  ├─> There is no corresponding `academy.session.absence` record.
+  └─> At month-end, nothing to reconcile. No credit is given. The pre-payment is kept. ✅
 ```
 
 ---
@@ -566,17 +440,13 @@ Scenario 4: No-show (not marked either way)
    - Chatter message documents addition
 7. ✅ Attempt to add same player again → expect error
 
-#### C. Billing Generation
-1. ✅ Confirm 5-10 sessions with mixed attendance
-2. ✅ Manually run billing: `model.generate_billing_items(date_from, date_to)`
-3. ✅ Verify:
-   - Billing items created ONLY for attendance records
-   - NO billing items for absent players (no attendance)
-   - Walk-in trials have amount = $0
-   - Walk-in others have normal pricing
-   - Each billing item links to source attendance_id
-   - attendance.billing_item_id set (prevents duplicate)
-4. ✅ Attempt to re-run billing → verify no duplicates (billing_item_id not null)
+#### C. Billing Generation (DEPRECATED)
+This entire testing section is deprecated. Testing should now follow the user stories in `doc/dev/billing/academy_billing_user_stories.md`, focusing on:
+1.  **Billing Template Creation**: Verify the default template is created and configurable.
+2.  **Pre-Paid Invoice Generation**: Run the daily cron and verify invoices are created on the correct day based on the template, for the correct amount, and that prior credits are applied.
+3.  **Ad-Hoc Charge Inclusion**: Create ad-hoc charges and ensure they appear on the next invoice.
+4.  **Absence Acknowledgment**: Verify coaches can "Acknowledge" absences.
+5.  **Credit Note Reconciliation**: Run the month-end reconciliation cron and verify that credit notes are created *only* for acknowledged absences.
 
 #### D. Absence Request Integration
 1. ✅ Create absence request for upcoming session (guardian portal or admin)
@@ -586,8 +456,8 @@ Scenario 4: No-show (not marked either way)
    - Absent player NOT in main roster checkboxes
 4. ✅ Confirm attendance
 5. ✅ Verify:
-   - NO attendance record for pre-reported absence
-   - NO billing item for pre-reported absence
+   - NO `academy.attendance` record is created for the absent player.
+   - This absence is now eligible to be "Acknowledged" by a coach for credit.
 
 #### E. Security and Access
 1. ✅ Login as coach
@@ -595,144 +465,110 @@ Scenario 4: No-show (not marked either way)
    - View attendance records
    - Confirm attendance
    - Add walk-ins
+   - **Acknowledge reported absences**
 3. ✅ Verify cannot:
    - Delete confirmed attendance
-   - Edit billing items
+   - Manage billing templates or invoices
 4. ✅ Login as admin
 5. ✅ Verify can:
    - View all attendance
-   - Approve/cancel billing items
-   - Run billing cron manually
+   - Manage billing templates
+   - Review generated invoices and credit notes
+   - Run billing and reconciliation crons manually
 
 ---
 
 ## Configuration
 
 ### System Parameters (ir.config_parameter)
-Set via Settings > Technical > Parameters > System Parameters
+The pricing parameters are now **DEPRECATED** as session pricing should be handled more robustly, likely on the `academy.session` model itself or linked through products. The new system introduces `academy.billing.template` which holds configuration for timing.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| academy.billing.group_tennis_price | 25.00 | Group tennis session price |
-| academy.billing.group_physical_price | 20.00 | Group physical session price |
-| academy.billing.individual_tennis_price | 60.00 | Individual tennis session price |
-| academy.billing.individual_physical_price | 40.00 | Individual physical session price |
+| academy.billing.group_tennis_price | 25.00 | **DEPRECATED** |
+| academy.billing.group_physical_price | 20.00 | **DEPRECATED** |
+| academy.billing.individual_tennis_price | 60.00 | **DEPRECATED** |
+| academy.billing.individual_physical_price | 40.00 | **DEPRECATED** |
 
 ### Cron Configuration
-Edit via Settings > Technical > Scheduled Actions > "Academy: Generate Monthly Billing"
-
-- **Frequency**: Monthly (default: 1st of month at 2 AM)
-- **Active**: Yes
-- **Number of Calls**: -1 (infinite)
+The single billing cron is replaced by two new ones:
+1.  **"Academy: Generate Monthly Pre-Paid Invoices"**: Runs daily, checks for templates due for generation.
+2.  **"Academy: Reconcile Monthly Absences for Credit"**: Runs monthly (1st of month), processes the previous month's acknowledged absences.
 
 ---
 
 ## Database Schema
 
-### ER Diagram (Simplified)
+### ER Diagram (Simplified, Reflecting New Logic)
 
 ```
+academy.session
+    ├──> academy.billing.template (billing_template_id)
+
 academy.session.occurrence
     ├──< academy.attendance (session_id)
-    │    ├──> academy.player (player_id)
-    │    ├──> res.users (marked_by_id)
-    │    └──> academy.billing.item (billing_item_id)
-    │
-    ├──< academy.session.participant (session_id)
     │    └──> academy.player (player_id)
     │
     └──< academy.session.absence (occurrence_id)
-         └──> academy.player (player_id)
+         ├──> academy.player (player_id)
+         └──> account.move (credit_note_id)  // Link to generated credit
 
-academy.billing.item
-    ├──> academy.attendance (attendance_id) - REQUIRED
-    ├──> academy.player (player_id)
-    ├──> res.partner (primary_guardian_id)
-    └──> account.move.line (invoice_line_id)
+account.move (Invoice)
+    ├──> res.partner (partner_id) // Guardian
+    └──< account.move.line
+
+account.move (Credit Note)
+    ├──> res.partner (partner_id) // Guardian
+    └──> academy.session.absence (origin_absence_id) // Link back to source
 ```
 
 ### Key Relationships
-- **One-to-Many**: session → attendance (one session, many attendance records)
-- **One-to-One**: attendance → billing_item (one attendance, one billing item max)
-- **Many-to-One**: billing_item → guardian (many billing items, one guardian)
-- **One-to-Many**: guardian → billing_items (for invoice grouping)
+- **One-to-One**: `academy.session.absence` → `account.move` (An acknowledged absence generates one credit note).
+- The `academy.billing.item` model is no longer central and its relationship to `academy.attendance` is severed.
 
 ---
 
 ## Known Limitations and Future Enhancements
 
 ### Current Limitations
-1. **No partial attendance tracking** - Player is either present or absent (no "late" support yet)
-2. **No attendance correction UI** - Admin must use backend to fix errors
-3. **No guardian portal views** - Guardians cannot see attendance history yet
-4. **No analytics/reporting** - No pivot views or dashboards yet
-5. **No invoice auto-generation** - Billing items created but invoices not auto-generated
+1. **No partial attendance tracking**.
+2. **No attendance correction UI**.
+3. **No guardian portal views for attendance/billing history**.
+4. **No analytics/reporting**.
 
 ### Recommended Enhancements
-1. **Guardian Portal Attendance View** (Priority: HIGH)
-   - Route: `/my/kids/attendance`
-   - Display: Monthly calendar with attendance status per child
-   - Filters: Date range, player, session type
-   - Indicators: ✅ Present, 📢 Absent-Reported, ❌ Absent-Unreported
+The previous recommendations are still valid. The "Automated Invoice Generation" is now the core of the new system, but the other points remain relevant.
 
-2. **Admin Analytics** (Priority: HIGH)
-   - Player attendance summary report (monthly, per player)
-   - Session attendance rates (by skill group, session type, coach)
-   - Absence analysis (reported vs unreported, reasons)
-   - Walk-in frequency report (by player, reason distribution)
-   - Pivot views for ad-hoc analysis
-
-3. **Automated Invoice Generation** (Priority: MEDIUM)
-   - Cron job to create invoices from approved billing items
-   - Group by guardian, add invoice lines
-   - Send email notification to guardians
-
-4. **Attendance Correction Workflow** (Priority: MEDIUM)
-   - Admin wizard to add/remove attendance records post-confirmation
-   - Requires reason and approval
-   - Handles billing item creation/deletion
-
-5. **Late Arrival Tracking** (Priority: LOW)
-   - Add 'late' state to attendance
-   - Track arrival time
-   - Differentiate in billing (partial charges?)
+1.  **Guardian Portal Views** (Priority: HIGH)
+2.  **Admin Analytics** (Priority: HIGH)
+3.  **Attendance Correction Workflow** (Priority: MEDIUM)
+4.  **Late Arrival Tracking** (Priority: LOW)
 
 ---
 
 ## Troubleshooting
 
-### Issue: "Attendance already confirmed. Contact admin to adjust."
-**Cause**: Coach trying to re-confirm already confirmed session.
-**Solution**: 
-- Admin can reset attendance_status to 'pending' via backend
-- Delete attendance records if needed (if not billed)
-- Re-run confirmation
+The previous troubleshooting steps related to billing are now **DEPRECATED**. New issues will revolve around the pre-paid and reconciliation logic.
 
-### Issue: "Player already in this session roster!"
-**Cause**: Trying to add walk-in player who is already registered.
-**Solution**: Player is in skill group or participant list, no need to add as walk-in.
-
-### Issue: "Cannot delete attendance record - already billed"
-**Cause**: Trying to delete attendance with billing_item_id set.
+### Issue: Invoice generated on the wrong day or for the wrong amount.
+**Cause**: Misconfiguration in the `academy.billing.template` or error in the session scheduling.
 **Solution**:
-- Cancel the billing item first
-- Then delete attendance record
-- Or keep attendance and adjust billing item amount to $0
+- Verify `invoice_generation_day` on the template.
+- Check the player's scheduled sessions for the month to ensure the count is correct.
 
-### Issue: "Billing cron created duplicate billing items"
-**Cause**: attendance.billing_item_id not properly set.
+### Issue: Credit not applied to an invoice.
+**Cause**: The absence was not "Acknowledged" by a coach, or the reconciliation cron job has not run yet.
 **Solution**:
-- Check for orphaned billing items (attendance_id not null but attendance.billing_item_id is null)
-- Re-link manually via SQL:
-  ```sql
-  UPDATE academy_attendance 
-  SET billing_item_id = (SELECT id FROM academy_billing_item WHERE attendance_id = academy_attendance.id) 
-  WHERE billing_item_id IS NULL;
-  ```
+- Ensure the `academy.session.absence` record has a state of 'acknowledged'.
+- Manually run the `cron_reconcile_monthly_absences` for the correct period.
+- Check that the generated credit note (`account.move`) is in a 'posted' state and un-reconciled.
 
-### Issue: "Walk-in player not showing in attendance wizard"
-**Cause**: Walk-in added after wizard opened.
-**Solution**: Close and re-open wizard to refresh.
+### Issue: Duplicate credit given for one absence.
+**Cause**: The `academy.session.absence` record was not correctly marked as 'credited' after reconciliation.
+**Solution**:
+- Add constraints to prevent an absence from being linked to more than one credit note.
+- Review the reconciliation logic to ensure the state is updated immediately after credit creation.
+
 
 ---
 
