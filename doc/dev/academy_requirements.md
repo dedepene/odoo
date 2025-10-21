@@ -45,11 +45,18 @@ Use this document to put together a roadmap and top-level design to modify this 
   - guardians should be notified via email when the invoice is generated and available in their portal
   - the invoice should be available in the guardian's portal
   - under Academy -> Configuration there should be a Billing section where the various pricing options are configured. These include:
-    - group practice session price
-    - individual practice session price
-    - physical activities session price
-    - individual physical activities session price
-  - 
+    - group practice per session price
+    - individual practice per session price
+    - physical activities per session price
+    - individual physical activities per session price
+    - due date for the monthly invoice (i.e. number of days after invoice generation). Default should be 10 days
+  - under Academy -> Configuration -> Billing there should be a section to set different types of billing as templates. These templates will be in turn applied to each session template and will determine how the billing for that session is calculated.
+    - types of billing include: per session, weekly flat rate, monthly post-dated invoicing and monthly pre-paid invoicing
+      **ignore** - per session - each attendance is billed at the configured per session price
+      **ignore**- weekly flat rate - a fixed price is billed for the week regardless of attendance
+      **ignore** - monthly post-dated invoicing - a fixed price is billed at the end of the month. It's calculated based on the number of attendances in the month times the per session price
+      - monthly pre-paid invoicing - This is commonly used billing scheme that requires certain commitment on behalf of players/parents and provides some stability in cash flow for the academy. Each player is billed at the beginning of the month and the amount totals the number of scheduled sessions in the month times the per session price. Any absences reported by a guardian and acknowledged by the coach staff result in a credit note being issued for the next month's invoice. Next month's invoice is adjusted accordingly. Example: if a player is scheduled for 8 sessions in the month and misses 2 with reported absences, the next month's invoice total will be adjusted to reflect payment deducting the 2 missed sessions times the per session price.
+    - each session template should be associated with one of the billing types
 
 4. Reports
   - a report should be available to show the attendance of each player for the month
