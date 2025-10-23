@@ -144,16 +144,4 @@
         </field>
     </record>
 
-    <!-- Attendance Menu Items -->
-    <menuitem id="menu_academy_attendance_root"
-              name="Attendance"
-              parent="academy_schedule.menu_academy_schedule_root"
-              sequence="30"/>
-
-    <menuitem id="menu_academy_attendance"
-              name="Attendance Records"
-              parent="menu_academy_attendance_root"
-              action="action_academy_attendance"
-              sequence="10"/>
-
 </odoo>

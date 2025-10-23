@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    networks:
+      - odoo-net
+    restart: unless-stopped
+  odoo-app:
+    image: odoo:19.0
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+#      - HTTP_INTERFACE: 0.0.0.0
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./extra-addons:/mnt/extra-addons
+    networks:
+      - odoo-net
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    depends_on:
+      - odoo-app
+    command: tunnel --no-autoupdate run --token eyJhIjoiYTkyNDY4MGFiNDkyYjZkMzc3YzA0Y2IzOGIzZTFmYjMiLCJ0IjoiMTNmMzRkM2MtMzA2Zi00ZjdjLTllNWEtODM1ZDM4MTE0NTJjIiwicyI6Ik1tWXhNalkyTWpRdE9UWXlNeTAwTldOaExXRmhPV1l0TmpVMllqWXhPVFV3TldNeCJ9
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    restart: unless-stopped
+    networks:
+      - odoo-net
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:
+
+networks:
+  odoo-net:
+    driver: bridge
