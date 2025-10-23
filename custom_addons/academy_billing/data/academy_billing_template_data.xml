@@ -10,15 +10,19 @@
             <field name="payment_due_days">10</field>
             <field name="is_default">True</field>
         </record>
-
+    </data>
+    
+    <data noupdate="0">
         <record id="product_template_prepaid_session" model="product.template">
             <field name="name">Monthly Session Fee</field>
             <field name="type">service</field>
             <field name="categ_id" ref="product.product_category_services"/>
             <field name="list_price">0.0</field>
-            <field name="sale_ok">False</field>
+            <field name="sale_ok">True</field>
             <field name="purchase_ok">False</field>
             <field name="invoice_policy">order</field>
+            <field name="taxes_id" eval="[(6, 0, [])]"/>
+            <field name="supplier_taxes_id" eval="[(6, 0, [])]"/>
         </record>
 
         <record id="product_template_ad_hoc_charge" model="product.template">
@@ -26,9 +30,10 @@
             <field name="type">service</field>
             <field name="categ_id" ref="product.product_category_services"/>
             <field name="list_price">0.0</field>
-            <field name="sale_ok">False</field>
+            <field name="sale_ok">True</field>
             <field name="purchase_ok">False</field>
             <field name="invoice_policy">order</field>
+            <field name="taxes_id" eval="[(5, 0, 0)]"/>
         </record>
     </data>
 </odoo>

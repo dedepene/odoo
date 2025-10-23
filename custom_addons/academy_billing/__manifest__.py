@@ -10,6 +10,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/academy_billing_template_data.xml',
+        'data/attendance_billing_cron.xml',
         'data/academy_billing_cron.xml',
         'views/academy_billing_template_views.xml',
         'views/academy_billing_session_template_views.xml',

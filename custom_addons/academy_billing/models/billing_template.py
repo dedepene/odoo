@@ -190,8 +190,12 @@ class AcademyBillingTemplate(models.Model):
                 'errors': missing_guardians,
             }
 
-        session_product = self.env.ref('academy_billing.product_product_prepaid_session', raise_if_not_found=False)
-        extra_product = self.env.ref('academy_billing.product_product_ad_hoc_charge', raise_if_not_found=False)
+        session_product = self.env.ref('academy_billing.product_template_prepaid_session', raise_if_not_found=False)
+        if session_product:
+            session_product = session_product.product_variant_id
+        extra_product = self.env.ref('academy_billing.product_template_ad_hoc_charge', raise_if_not_found=False)
+        if extra_product:
+            extra_product = extra_product.product_variant_id
         currency = self.env.company.currency_id
 
         invoice_ids = []
@@ -343,7 +347,9 @@ class AcademyBillingTemplate(models.Model):
             ('occurrence_id.date', '<=', previous_month_end),
         ])
 
-        session_product = self.env.ref('academy_billing.product_product_prepaid_session', raise_if_not_found=False)
+        session_product = self.env.ref('academy_billing.product_template_prepaid_session', raise_if_not_found=False)
+        if session_product:
+            session_product = session_product.product_variant_id
         currency = self.env.company.currency_id
         created_credit_ids = []
 
