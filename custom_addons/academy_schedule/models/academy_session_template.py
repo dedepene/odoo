@@ -16,8 +16,37 @@ class AcademySessionTemplate(models.Model):
     name = fields.Char(string='Template Name', compute='_compute_name', store=True)
     season_id = fields.Many2one('academy.season', string='Season', required=True,
                                ondelete='cascade', tracking=True)
-    skill_group_id = fields.Many2one('academy.skill.group', string='Skill Group',
-                                    required=True, tracking=True)
+    
+    # Multi-skill group support
+    multi_skill_mode = fields.Boolean(
+        string='Multi-Skill Group Session',
+        default=False,
+        tracking=True,
+        help='Enable to allow multiple skill groups (e.g., for Physical Activities sessions)'
+    )
+    skill_group_id = fields.Many2one(
+        'academy.skill.group', 
+        string='Skill Group',
+        tracking=True,
+        help='Primary skill group (for single-skill sessions)'
+    )
+    skill_group_ids = fields.Many2many(
+        'academy.skill.group',
+        'academy_session_template_skill_group_rel',
+        'template_id',
+        'skill_group_id',
+        string='Skill Groups',
+        tracking=True,
+        help='Select multiple skill groups for cross-level sessions (e.g., Physical Activities)'
+    )
+    primary_skill_group_id = fields.Many2one(
+        'academy.skill.group',
+        compute='_compute_primary_skill_group',
+        store=True,
+        string='Primary Skill Group (Computed)',
+        help='Automatically set: single skill_group_id or first in skill_group_ids'
+    )
+    
     day_of_week = fields.Selection([
         ('0', 'Monday'),
         ('1', 'Tuesday'),
@@ -68,19 +97,39 @@ class AcademySessionTemplate(models.Model):
     occurrence_count = fields.Integer(string='Occurrences', 
                                      compute='_compute_occurrence_count')
 
-    @api.depends('skill_group_id', 'day_of_week', 'start_time', 'session_type')
+    @api.depends('multi_skill_mode', 'skill_group_id', 'skill_group_ids')
+    def _compute_primary_skill_group(self):
+        """Compute primary skill group for backward compatibility."""
+        for template in self:
+            if template.multi_skill_mode:
+                template.primary_skill_group_id = template.skill_group_ids[0] if template.skill_group_ids else False
+            else:
+                template.primary_skill_group_id = template.skill_group_id
+
+    @api.depends('primary_skill_group_id', 'day_of_week', 'start_time', 'session_type', 'multi_skill_mode')
     def _compute_name(self):
         """Generate template name from key fields."""
         day_names = dict(self._fields['day_of_week'].selection)
         for template in self:
-            if template.skill_group_id and template.day_of_week:
+            primary_group = template.primary_skill_group_id
+            if template.multi_skill_mode and template.skill_group_ids:
+                # Multi-skill: show "Multi-Level" or list groups
+                if len(template.skill_group_ids) > 2:
+                    group_label = "Multi-Level"
+                else:
+                    group_label = "+".join(template.skill_group_ids.mapped('name'))
+            elif primary_group:
+                group_label = primary_group.name
+            else:
+                group_label = "New"
+                
+            if template.day_of_week and template.start_time:
                 start_h = int(template.start_time)
                 start_m = int((template.start_time % 1) * 60)
                 time_str = f"{start_h:02d}:{start_m:02d}"
-                template.name = (f"{template.skill_group_id.name} - "
-                               f"{day_names[template.day_of_week]} {time_str}")
+                template.name = f"{group_label} - {day_names[template.day_of_week]} {time_str}"
             else:
-                template.name = 'New Template'
+                template.name = f'{group_label} Template'
 
     @api.depends('start_time', 'end_time')
     def _compute_duration(self):
@@ -105,6 +154,21 @@ class AcademySessionTemplate(models.Model):
                 raise ValidationError('Start time must be between 0 and 24!')
             if template.end_time < 0 or template.end_time > 24:
                 raise ValidationError('End time must be between 0 and 24!')
+
+    @api.constrains('multi_skill_mode', 'skill_group_id', 'skill_group_ids')
+    def _check_skill_groups(self):
+        """Validate skill group configuration."""
+        for template in self:
+            if template.multi_skill_mode:
+                if not template.skill_group_ids:
+                    raise ValidationError(
+                        'Multi-skill mode requires at least one skill group to be selected!'
+                    )
+            else:
+                if not template.skill_group_id:
+                    raise ValidationError(
+                        'Single-skill mode requires a skill group to be selected!'
+                    )
 
     @api.constrains('court_ids', 'day_of_week', 'start_time', 'end_time', 'season_id')
     def _check_court_conflicts(self):
@@ -235,10 +299,9 @@ class AcademySessionTemplate(models.Model):
         start_datetime = start_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
         end_datetime = end_dt_localized.astimezone(pytz.utc).replace(tzinfo=None)
         
-        return {
+        vals = {
             'template_id': self.id,
             'season_id': self.season_id.id,
-            'skill_group_id': self.skill_group_id.id,
             'date': date,
             'start_datetime': start_datetime,
             'end_datetime': end_datetime,
@@ -246,7 +309,18 @@ class AcademySessionTemplate(models.Model):
             'court_ids': [(6, 0, self.court_ids.ids)],
             'coach_id': self.coach_id.id if self.coach_id else False,
             'is_individual': False,
+            'multi_skill_mode': self.multi_skill_mode,
         }
+        
+        # Populate skill groups based on mode
+        if self.multi_skill_mode:
+            vals['skill_group_ids'] = [(6, 0, self.skill_group_ids.ids)]
+            vals['skill_group_id'] = self.skill_group_ids[0].id if self.skill_group_ids else False
+        else:
+            vals['skill_group_id'] = self.skill_group_id.id if self.skill_group_id else False
+            vals['skill_group_ids'] = [(6, 0, [self.skill_group_id.id])] if self.skill_group_id else False
+        
+        return vals
 
     def _prepare_followup_occurrence_vals(self, date):
         """Prepare values for follow-up occurrence."""

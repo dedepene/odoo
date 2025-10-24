@@ -1,6 +1,6 @@
 {
     'name': 'Academy Schedule',
-    'version': '19.0.1.0.0',
+    'version': '19.0.3.1.0',
     'summary': 'Session scheduling and calendar management for Tennis Academy',
     'description': '''
         Comprehensive scheduling module for tennis academy including:
@@ -13,6 +13,7 @@
         - Season suspension for dome installation or tournaments
         - Calendar visibility scoping by role
         - Follow-up physical training session auto-linking
+        - Multi-skill group sessions for cross-level training (NEW in v3.0.0)
     ''',
     'author': 'dedepene',
     'website': 'https://example.com',

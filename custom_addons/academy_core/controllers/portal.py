@@ -40,9 +40,14 @@ class AcademyPortal(CustomerPortal):
             today = fields.Date.today()
             session_count = 0
             for p in players:
-                domain = ['&', ('date', '>=', today), ('state', '=', 'planned'), 
-                         '|', ('skill_group_id', '=', p.skill_group_id.id), 
-                         ('player_ids', 'in', p.id)]
+                # Support both single-skill and multi-skill sessions
+                domain = [
+                    '&', ('date', '>=', today), ('state', '=', 'planned'), 
+                    '|', 
+                        '|', ('skill_group_id', '=', p.skill_group_id.id),
+                        ('skill_group_ids', 'in', [p.skill_group_id.id]),
+                    ('player_ids', 'in', p.id)
+                ]
                 session_count += Occ.search_count(domain)
             values['session_count'] = session_count
         
@@ -66,9 +71,14 @@ class AcademyPortal(CustomerPortal):
         today = fields.Date.today()
         upcoming_sessions = []
         for p in players:
-            domain = ['&', ('date', '>=', today), ('state', '=', 'planned'),
-                     '|', ('skill_group_id', '=', p.skill_group_id.id), 
-                     ('player_ids', 'in', p.id)]
+            # Support both single-skill and multi-skill sessions
+            domain = [
+                '&', ('date', '>=', today), ('state', '=', 'planned'),
+                '|',
+                    '|', ('skill_group_id', '=', p.skill_group_id.id),
+                    ('skill_group_ids', 'in', [p.skill_group_id.id]),
+                ('player_ids', 'in', p.id)
+            ]
             occs = Occ.search(domain, order='date, start_datetime', limit=5)
             for occ in occs:
                 upcoming_sessions.append({'player': p, 'occurrence': occ})
@@ -129,16 +139,24 @@ class AcademyPortal(CustomerPortal):
         Occ = request.env['academy.session.occurrence'].sudo()
         today = fields.Date.today()
         
-        # Upcoming sessions
-        upcoming_domain = ['&', ('date', '>=', today), ('state', '=', 'planned'),
-                          '|', ('skill_group_id', '=', player.skill_group_id.id), 
-                          ('player_ids', 'in', player.id)]
+        # Upcoming sessions - support both single-skill and multi-skill sessions
+        upcoming_domain = [
+            '&', ('date', '>=', today), ('state', '=', 'planned'),
+            '|',
+                '|', ('skill_group_id', '=', player.skill_group_id.id),
+                ('skill_group_ids', 'in', [player.skill_group_id.id]),
+            ('player_ids', 'in', player.id)
+        ]
         upcoming_sessions = Occ.search(upcoming_domain, order='date, start_datetime', limit=10)
         
-        # Past sessions (last 10)
-        past_domain = ['&', ('date', '<', today),
-                      '|', ('skill_group_id', '=', player.skill_group_id.id), 
-                      ('player_ids', 'in', player.id)]
+        # Past sessions (last 10) - support both single-skill and multi-skill sessions
+        past_domain = [
+            '&', ('date', '<', today),
+            '|',
+                '|', ('skill_group_id', '=', player.skill_group_id.id),
+                ('skill_group_ids', 'in', [player.skill_group_id.id]),
+            ('player_ids', 'in', player.id)
+        ]
         past_sessions = Occ.search(past_domain, order='date desc, start_datetime desc', limit=10)
         
         # Get absences for upcoming sessions
@@ -173,20 +191,28 @@ class AcademyPortal(CustomerPortal):
         absences_by_player = {}
         
         for p in players:
-            # Upcoming sessions
-            upcoming_domain = ['&', ('date', '>=', today), ('state', '=', 'planned'),
-                              '|', ('skill_group_id', '=', p.skill_group_id.id), 
-                              ('player_ids', 'in', p.id)]
+            # Upcoming sessions - support both single-skill and multi-skill sessions
+            upcoming_domain = [
+                '&', ('date', '>=', today), ('state', '=', 'planned'),
+                '|',
+                    '|', ('skill_group_id', '=', p.skill_group_id.id),
+                    ('skill_group_ids', 'in', [p.skill_group_id.id]),
+                ('player_ids', 'in', p.id)
+            ]
             upcoming_sessions = Occ.search(upcoming_domain, order='date, start_datetime')
             upcoming_by_player[p.id] = upcoming_sessions
             
             # Get absences for this player's upcoming sessions
             absences_by_player[p.id] = self._get_absences_for_sessions(p.id, upcoming_sessions.ids)
             
-            # Past sessions
-            past_domain = ['&', ('date', '<', today),
-                          '|', ('skill_group_id', '=', p.skill_group_id.id), 
-                          ('player_ids', 'in', p.id)]
+            # Past sessions - support both single-skill and multi-skill sessions
+            past_domain = [
+                '&', ('date', '<', today),
+                '|',
+                    '|', ('skill_group_id', '=', p.skill_group_id.id),
+                    ('skill_group_ids', 'in', [p.skill_group_id.id]),
+                ('player_ids', 'in', p.id)
+            ]
             past_by_player[p.id] = Occ.search(past_domain, order='date desc, start_datetime desc', limit=20)
         
         values.update({

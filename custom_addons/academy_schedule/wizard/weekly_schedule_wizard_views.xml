@@ -15,7 +15,9 @@
                             <list editable="bottom" create="0" delete="0">
                                 <field name="template_id" column_invisible="1"/>
                                 <field name="selected" widget="boolean_toggle"/>
-                                <field name="skill_group_id"/>
+                                <field name="multi_skill_mode" optional="show"/>
+                                <field name="skill_group_id" optional="show"/>
+                                <field name="skill_group_ids" widget="many2many_tags" optional="show"/>
                                 <field name="day_of_week"/>
                                 <field name="start_time" widget="float_time"/>
                                 <field name="end_time" widget="float_time"/>

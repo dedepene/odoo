@@ -602,3 +602,33 @@ WHERE skill_group_id IS NOT NULL
 
 **Document Status**: ✅ Ready for Review  
 **Next Steps**: Schedule design review meeting with Tech Lead, Product Owner, and Head Coach
+
+
+Complete Production Migration Workflow
+
+# 1. Backup the database first!
+docker exec odoo-odoo-db-1 pg_dump -U odoo postgres > backup_before_migration_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. Copy migration script
+docker cp custom_addons/academy_schedule/migrations/migrate_multi_skill_groups.sql odoo-odoo-db-1:/tmp/migrate_multi_skill_groups.sql
+
+# 3. Run SQL migration
+docker exec -i odoo-odoo-db-1 psql -U odoo -d postgres -f /tmp/migrate_multi_skill_groups.sql
+
+# 4. Stop Odoo app
+docker compose stop odoo-app
+
+# 5. Upgrade module
+docker compose run --rm odoo-app odoo --config /etc/odoo/odoo.conf -u academy_schedule -d postgres --stop-after-init
+
+# 6. Restart Odoo
+docker compose start odoo-app
+
+# 7. Check logs
+docker compose logs -f odoo-app
+
+Key Differences from Development
+Database name: postgres (not odoo)
+Container names: Use Docker container names (check with docker ps)
+Module upgrade: Use docker compose run or docker compose exec
+Always backup first: Use pg_dump before any migration

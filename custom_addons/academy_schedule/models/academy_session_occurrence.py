@@ -41,9 +41,30 @@ class AcademySessionOccurrence(models.Model):
         ('physical_individual', 'Physical Activities (Individual)'),
     ], string='Session Type', required=True, tracking=True)
     
+    # Multi-skill group support
+    multi_skill_mode = fields.Boolean(
+        string='Multi-Skill Mode',
+        default=False,
+        tracking=True,
+        help='Session allows players from multiple skill groups'
+    )
+    
     # Participants
-    skill_group_id = fields.Many2one('academy.skill.group', string='Skill Group',
-                                    help='For group sessions')
+    skill_group_id = fields.Many2one(
+        'academy.skill.group', 
+        string='Primary Skill Group',
+        tracking=True,
+        help='Primary skill group (for reporting/filtering)'
+    )
+    skill_group_ids = fields.Many2many(
+        'academy.skill.group',
+        'academy_session_occurrence_skill_group_rel',
+        'occurrence_id',
+        'skill_group_id',
+        string='Skill Groups',
+        tracking=True,
+        help='Skill groups eligible for this session'
+    )
     player_ids = fields.Many2many('academy.player', string='Players',
                                  help='For individual sessions or specific attendees')
     
@@ -368,21 +389,37 @@ class AcademySessionOccurrence(models.Model):
     def _get_registered_players(self):
         """
         Get all players registered for this session.
-        For group sessions: all players in the skill group.
+        For group sessions: all players in ANY of the linked skill groups (supports multi-skill mode).
         For individual sessions: explicitly assigned players.
         """
         self.ensure_one()
         if self.session_type in ['tennis_group', 'physical_group']:
-            # Group session: all players in skill group
+            # Group session: all players in skill group(s)
             import logging
             _logger = logging.getLogger(__name__)
-            _logger.info(f"Getting registered players for session {self.id}: skill_group_id={self.skill_group_id.id if self.skill_group_id else None}, skill_group_name={self.skill_group_id.name if self.skill_group_id else None}")
+            
+            # Multi-skill support: search across all linked skill groups
+            if self.multi_skill_mode and self.skill_group_ids:
+                skill_group_ids = self.skill_group_ids.ids
+            elif self.skill_group_id:
+                skill_group_ids = [self.skill_group_id.id]
+            else:
+                _logger.warning(f"Session {self.id} has no skill groups defined!")
+                return self.env['academy.player']
+            
+            _logger.info(
+                f"Getting registered players for session {self.id} ({self.session_type}): "
+                f"multi_skill_mode={self.multi_skill_mode}, skill_groups={skill_group_ids}"
+            )
             
             players = self.env['academy.player'].search([
-                ('skill_group_id', '=', self.skill_group_id.id),
+                ('skill_group_id', 'in', skill_group_ids),
                 ('active', '=', True)
             ])
-            _logger.info(f"Found {len(players)} players: {[(p.reference, p.name, p.skill_group_id.name) for p in players]}")
+            
+            _logger.info(
+                f"Found {len(players)} players from {len(skill_group_ids)} skill group(s)"
+            )
             return players
         else:
             # Individual session: explicit participants

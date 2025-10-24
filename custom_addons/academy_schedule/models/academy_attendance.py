@@ -123,7 +123,7 @@ class AcademyAttendance(models.Model):
     def _check_player_eligible(self):
         """
         Validate player is eligible for the session.
-        For group sessions: player should be in skill group OR be a walk-in.
+        For group sessions: player should be in ANY of the session's skill groups OR be a walk-in.
         For individual sessions: player should be in participant list OR be a walk-in.
         """
         for record in self:
@@ -135,13 +135,24 @@ class AcademyAttendance(models.Model):
             player = record.player_id
 
             if session.session_type in ['tennis_group', 'physical_group']:  # type: ignore[attr-defined]
-                # Group session: check skill group
-                if session.skill_group_id and player.skill_group_id != session.skill_group_id:  # type: ignore[attr-defined]
-                    raise ValidationError(  # type: ignore[attr-defined]
-                        f"Player {player.name} is not in the skill group "  # type: ignore[attr-defined]
-                        f"'{session.skill_group_id.name}' for this session. "  # type: ignore[attr-defined]
-                        f"Use 'Add Walk-In Player' instead."
-                    )
+                # Group session: check if player's skill group is in session's allowed skill groups
+                if session.multi_skill_mode:  # type: ignore[attr-defined]
+                    # Multi-skill mode: check if player is in ANY of the allowed skill groups
+                    if session.skill_group_ids and player.skill_group_id not in session.skill_group_ids:  # type: ignore[attr-defined]
+                        allowed_groups = ', '.join(session.skill_group_ids.mapped('name'))  # type: ignore[attr-defined]
+                        raise ValidationError(  # type: ignore[attr-defined]
+                            f"Player {player.name} (skill group: {player.skill_group_id.name}) "  # type: ignore[attr-defined]
+                            f"is not eligible for this session. "
+                            f"Allowed groups: {allowed_groups}"
+                        )
+                else:
+                    # Single-skill mode: exact match required
+                    if session.skill_group_id and player.skill_group_id != session.skill_group_id:  # type: ignore[attr-defined]
+                        raise ValidationError(  # type: ignore[attr-defined]
+                            f"Player {player.name} is not in the skill group "  # type: ignore[attr-defined]
+                            f"'{session.skill_group_id.name}' for this session. "  # type: ignore[attr-defined]
+                            f"Use 'Add Walk-In Player' instead."
+                        )
             elif session.session_type in ['tennis_individual', 'physical_individual']:  # type: ignore[attr-defined]
                 # Individual session: check participant list
                 if player not in session.player_ids:  # type: ignore[attr-defined]

@@ -39,7 +39,9 @@ class WeeklyScheduleWizard(models.TransientModel):
                     'template_id': template.id,
                     'selected': True,  # Pre-select all by default
                     # Copy template data directly so it persists
-                    'skill_group_id': template.skill_group_id.id,
+                    'multi_skill_mode': template.multi_skill_mode,
+                    'skill_group_id': template.skill_group_id.id if not template.multi_skill_mode else False,
+                    'skill_group_ids': [(6, 0, template.skill_group_ids.ids)] if template.multi_skill_mode else [],
                     'day_of_week': template.day_of_week,
                     'start_time': template.start_time,
                     'end_time': template.end_time,
@@ -114,7 +116,9 @@ class WeeklyScheduleWizardLine(models.TransientModel):
                             help='Check to generate sessions for this template')
     
     # Store template data directly (not as related fields) so it persists in transient model
+    multi_skill_mode = fields.Boolean(string='Multi-Skill Mode', readonly=True)
     skill_group_id = fields.Many2one('academy.skill.group', string='Skill Group', readonly=True)
+    skill_group_ids = fields.Many2many('academy.skill.group', string='Skill Groups', readonly=True)
     day_of_week = fields.Selection([
         ('0', 'Monday'),
         ('1', 'Tuesday'),
