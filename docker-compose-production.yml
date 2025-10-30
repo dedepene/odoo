@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:16
+    container_name: odoo_postgres
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+      # Optional: backup volume
+      - ./backups:/backups
+    networks:
+      - odoo-net
+    restart: unless-stopped
+    # Resource limits (adjust based on LXC container resources)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  odoo-app:
+    image: odoo:19.0
+    container_name: odoo_app
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+      # Longpolling/websockets now on same port as HTTP (8069)
+    # No environment variables - using odoo.conf instead
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      # Mount your custom addons
+      - ./custom_addons:/mnt/extra-addons
+      # Mount odoo.conf (using production config)
+      - ./odoo.production.conf:/etc/odoo/odoo.conf
+      # Filestore for attachments
+      - ./filestore:/var/lib/odoo/filestore
+      # Log directory
+      - ./logs:/var/log/odoo
+    networks:
+      - odoo-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    depends_on:
+      - odoo-app
+    # Use the token from Cloudflare Dashboard
+    command: tunnel --no-autoupdate run --token eyJhIjoiYTkyNDY4MGFiNDkyYjZkMzc3YzA0Y2IzOGIzZTFmYjMiLCJ0IjoiMTNmMzRkM2MtMzA2Zi00ZjdjLTllNWEtODM1ZDM4MTE0NTJjIiwicyI6Ik1tWXhNalkyTWpRdE9UWXlNeTAwTldOaExXRmhPV1l0TmpVMllqWXhPVFV3TldNeCJ9
+    restart: unless-stopped
+    networks:
+      - odoo-net
+    # Health check
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  odoo-db-data:
+    driver: local
+  odoo-web-data:
+    driver: local
+
+networks:
+  odoo-net:
+    driver: bridge
+    # Optional: custom subnet
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

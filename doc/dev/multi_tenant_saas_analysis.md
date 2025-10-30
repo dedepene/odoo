@@ -418,8 +418,7 @@ services:
       - db
     ports:
       - "8069:8069"
-      # Longpolling port (if needed)
-      - "8072:8072"
+      # Longpolling/websockets now on same port as HTTP (8069) with workers=0
     environment:
       - HOST=db
       - USER=odoo
@@ -432,9 +431,11 @@ services:
       # Mount your custom addons
       - ./custom_addons:/mnt/extra-addons
       # Mount odoo.conf
-      - ./odoo.conf:/etc/odoo/odoo.conf
+      - ./odoo.production.conf:/etc/odoo/odoo.conf
       # Filestore for attachments
       - ./filestore:/var/lib/odoo/filestore
+      # Log directory
+      - ./logs:/var/log/odoo
     networks:
       - odoo-net
     restart: unless-stopped
@@ -483,8 +484,101 @@ networks:
 3. **Health checks**: Monitor tunnel status
 4. **Resource limits**: Prevent container from consuming all LXC resources
 5. **Volume mounts**: Persist data and configurations
+6. **Port 8069 only**: Websockets and HTTP on same port (no port 8072 needed with workers=0)
 
-##### Step 4: Odoo Configuration for Cloudflare Tunnel
+##### Step 4a: Cloudflare Websocket Configuration
+
+**Critical for Real-Time Features**: Odoo uses websockets for real-time notifications, live updates, and chat features. These are essential for multi-user systems like tennis academy management with coaches, players, and parents interacting.
+
+**Cloudflare Setup**:
+
+1. **Enable Websockets Globally**:
+   - Go to Cloudflare Dashboard → Your Domain (playhub.bg)
+   - Navigate to **Network** → **WebSockets**
+   - Ensure WebSockets are **enabled** (toggle should be ON)
+
+2. **Verify Tunnel Configuration**:
+   - Cloudflare Tunnel automatically supports websockets when enabled globally
+   - The tunnel configuration created earlier already routes websocket upgrade requests correctly
+   - Cloudflare preserves the `Upgrade: websocket` header
+
+**Odoo Configuration for Websockets**:
+
+The key to making websockets work through Cloudflare Tunnel is using **threaded mode (workers=0)** in `odoo.conf`:
+
+```ini
+# Workers configuration - CRITICAL for websockets through Cloudflare
+workers = 0                    # Threaded mode - handles HTTP and websockets on same port
+max_cron_threads = 2          # Background job processing
+
+# No separate gevent_port needed - websockets work on port 8069
+```
+
+**Why This Works**:
+
+- **Multi-worker mode (workers > 0)**: 
+  - HTTP on port 8069
+  - Websockets on port 8072 (gevent_port)
+  - Cloudflare Tunnel routes to 8069, missing websocket connections
+  - Results in `RuntimeError: Couldn't bind the websocket` errors
+
+- **Threaded mode (workers = 0)**:
+  - Both HTTP and websockets on port 8069
+  - Single process with multiple threads
+  - Cloudflare Tunnel routes everything to 8069
+  - Websockets work seamlessly ✅
+
+**Performance Considerations**:
+
+| Mode | Max Concurrent Users | CPU Utilization | Memory Usage | Websocket Support |
+|------|---------------------|-----------------|--------------|-------------------|
+| Threaded (workers=0) | ~100 total (all tenants) | Single core (100%) | ~1-2 GB | ✅ Works with Cloudflare |
+| Multi-process (workers=4) | ~400 total (all tenants) | Multi-core (25% each) | ~2-3 GB per worker | ⚠️ Requires separate port routing |
+
+**IMPORTANT**: The concurrent user limits apply to the **ENTIRE Odoo server** (all subdomains/databases combined), not per database.
+
+**Scaling Guidelines for Multi-Tenant SaaS**:
+
+- **1-3 academies** (<100 total concurrent users):
+  - ✅ Threaded mode is sufficient
+  - Real-time features work out of the box
+  - Simpler configuration and troubleshooting
+
+- **4-10 academies** (100-500 total concurrent users):
+  - ⚠️ Switch to multi-worker mode (workers=4-8)
+  - Implement advanced Cloudflare websocket routing (see Issue 5)
+  - Better CPU utilization across cores
+
+- **10+ academies** (500+ concurrent users):
+  - 🚀 Consider horizontal scaling (multiple Odoo servers)
+  - Load balancer distribution (e.g., Cloudflare Load Balancing)
+  - Database sharding (tenant groups per server)
+  - Dedicated servers for high-traffic tenants
+
+**Example**: If you have 5 academies with 30 concurrent users each = 150 total → You need multi-worker mode.
+
+**Testing Websocket Connection**:
+
+```bash
+# Check Odoo logs for successful websocket connections
+docker logs odoo_app 2>&1 | grep websocket
+
+# Expected (no errors):
+# INFO odoo.addons.bus.models.bus: Bus.poll([...])
+
+# If you see errors like this (means websockets not working):
+# ERROR odoo.http: RuntimeError: Couldn't bind the websocket
+```
+
+**Browser Developer Tools Test**:
+
+1. Open browser dev tools (F12)
+2. Go to Network tab, filter by WS (WebSocket)
+3. Access your Odoo instance (e.g., `https://1540.playhub.bg`)
+4. You should see a websocket connection to `/websocket`
+5. Status should be `101 Switching Protocols` (success)
+
+##### Step 4b: Original Odoo Configuration (Reference)
 
 **`odoo.conf`** must be configured correctly:
 
@@ -495,6 +589,10 @@ admin_passwd = $pbkdf2-sha512$600000$FiJkLMVY6937n7MW4tz7Hw$5.l3XDA5wqP.Iz2CHo.t
 
 # Module paths
 addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+
+# Network interface
+http_interface = 0.0.0.0
+http_port = 8069
 
 # CRITICAL: Enable proxy mode for Cloudflare
 proxy_mode = True
@@ -517,18 +615,21 @@ logfile = /var/log/odoo/odoo.log
 log_level = info
 
 # Performance tuning for LXC
-limit_memory_hard = 6442450944  # 6 GB
-limit_memory_soft = 5368709120  # 5 GB
+# Memory limits: 6 GB hard, 5 GB soft
+limit_memory_hard = 6442450944
+limit_memory_soft = 5368709120
 limit_time_cpu = 600
 limit_time_real = 1200
 limit_request = 8192
 
-# Workers (adjust based on LXC CPU cores)
-workers = 4
+# Workers configuration for websocket support
+# Using threaded mode (workers=0) to handle both HTTP and websockets on same port
+# This allows websockets to work properly through Cloudflare Tunnel
+workers = 0
 max_cron_threads = 2
 
-# Longpolling
-gevent_port = 8072
+# With workers=0, longpolling/websockets work on the same port (8069)
+# No separate gevent_port needed
 ```
 
 **Critical Settings Explained**:
@@ -536,10 +637,20 @@ gevent_port = 8072
 - **`proxy_mode = True`**: Tells Odoo to trust `X-Forwarded-*` headers from Cloudflare
   - Without this, Odoo will see all requests as coming from cloudflared container
   - Enables correct IP logging, CSRF protection, and session management
+
+- **`http_interface = 0.0.0.0`**: Allows Odoo to accept connections from cloudflared container
+  - Required for Docker networking
   
 - **`dbfilter = ^%d$`**: Extracts subdomain for database routing
   - `1540.playhub.bg` → database `1540`
   - `maleevi.playhub.bg` → database `maleevi`
+
+- **`workers = 0`**: Uses threaded mode instead of multi-process workers
+  - **CRITICAL for websockets through Cloudflare Tunnel**
+  - Both HTTP and websockets handled on port 8069
+  - Avoids websocket routing issues between ports
+  - Suitable for small to medium deployments (up to ~100 concurrent users)
+  - For larger deployments, would need more complex reverse proxy configuration
 
 ##### Step 5: Proxmox LXC Container Configuration
 
@@ -837,6 +948,89 @@ docker exec cloudflared_tunnel cat /etc/cloudflared/config.yml
 curl -v https://1540.playhub.bg/web 2>&1 | grep -i host
 
 # Should show: Host: 1540.playhub.bg
+```
+
+**Issue 5: Websocket Connection Errors**
+
+**Symptom**: Error in logs:
+```
+ERROR odoo.http: RuntimeError: Couldn't bind the websocket. 
+Is the connection opened on the evented port (8072)?
+```
+
+**Cause**: Using multi-worker mode (workers > 0) with separate gevent_port for websockets. Cloudflare Tunnel cannot route websocket requests from port 8069 to port 8072.
+
+**Solution 1: Use Threaded Mode (Recommended)**
+
+```ini
+# In odoo.conf
+workers = 0                    # Use threaded mode
+max_cron_threads = 2
+
+# Remove or comment out:
+# gevent_port = 8072
+```
+
+**Solution 2: Keep Multi-Worker Mode (Advanced)**
+
+If you need multi-worker mode for performance, you must configure Cloudflare Tunnel to route websocket paths to a different service:
+
+```yaml
+# cloudflared-config.yml
+tunnel: <your-tunnel-id>
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Route websocket paths to gevent port
+  - hostname: "*.playhub.bg"
+    path: ^/(websocket|longpolling)
+    service: http://odoo-app:8072
+    originRequest:
+      httpHostHeader: "{http_req_hostname}"
+      noTLSVerify: true
+  
+  # Route all other traffic to main port
+  - hostname: "*.playhub.bg"
+    service: http://odoo-app:8069
+    originRequest:
+      httpHostHeader: "{http_req_hostname}"
+      noTLSVerify: true
+  
+  # Catch-all
+  - service: http_status:404
+```
+
+Then update docker-compose to use config file instead of token:
+
+```yaml
+cloudflared:
+  image: cloudflare/cloudflared:latest
+  container_name: cloudflared_tunnel
+  depends_on:
+    - odoo-app
+  command: tunnel --config /etc/cloudflared/config.yml run
+  volumes:
+    - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
+    - ./cloudflared-credentials.json:/etc/cloudflared/credentials.json:ro
+  restart: unless-stopped
+  networks:
+    - odoo-net
+```
+
+**Note**: For most deployments, **Solution 1 (threaded mode) is simpler and sufficient**.
+
+**Verification**:
+
+```bash
+# Check Odoo logs - should NOT see websocket errors
+docker logs odoo_app 2>&1 | grep -i websocket
+
+# Expected: No errors, or successful connection logs
+
+# Test in browser
+# 1. Open dev tools (F12) → Network → WS filter
+# 2. Access your Odoo site
+# 3. Should see websocket connection with status 101
 ```
 
 #### Performance Optimization for LXC

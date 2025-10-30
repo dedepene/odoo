@@ -1,0 +1,19 @@
+tunnel: 13f34d3c-306f-4f7c-9e5a-835d3811452c
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Wildcard for all subdomains
+  - hostname: "*.playhub.bg"
+    service: http://odoo-app:8069
+    originRequest:
+      # Preserve the Host header
+      httpHostHeader: "{http_req_hostname}"
+      # Enable websocket support
+      noTLSVerify: false
+      connectTimeout: 30s
+      # Important: Keep connections alive for websockets
+      keepAliveConnections: 100
+      keepAliveTimeout: 90s
+      
+  # Catch-all rule (required)
+  - service: http_status:404

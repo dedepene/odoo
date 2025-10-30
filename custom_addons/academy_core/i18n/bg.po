@@ -1,0 +1,2089 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* academy_core
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0-20250918\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-30 07:16+0000\n"
+"PO-Revision-Date: 2025-10-30 10:35+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: bg\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.8\n"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__supplier_invoice_count
+msgid "# Vendor Bills"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "<i class=\"fa fa-arrow-left me-1\"/>Back to My Kids"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "<i class=\"fa fa-calendar me-1\"/> Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "<i class=\"fa fa-calendar me-2\"/>Next Upcoming Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<i class=\"fa fa-calendar-plus me-1\"/>Upcoming Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "<i class=\"fa fa-calendar-plus me-2\"/>Upcoming Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<i class=\"fa fa-check-circle me-2\"/>Absence reported successfully!"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<i class=\"fa fa-check-circle me-2\"/>Payment History"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-check-circle me-2\"/>Profile updated successfully!"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-cog me-2\"/>Account Settings"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<i class=\"fa fa-exclamation-circle me-2\"/>Current Invoices"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<i class=\"fa fa-eye me-1\"/>View"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "<i class=\"fa fa-eye me-1\"/>View Details"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "<i class=\"fa fa-file-text me-1\"/> Billing"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<i class=\"fa fa-history me-1\"/>Past Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "<i class=\"fa fa-history me-2\"/>Recent Past Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "<i class=\"fa fa-home me-1\"/> Dashboard"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<i class=\"fa fa-info-circle me-2\"/>Absence cancelled successfully!"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<i class=\"fa fa-info-circle me-2\"/>Billing Information"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid ""
+"<i class=\"fa fa-info-circle me-2\"/>No children are linked to your account."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-lock me-1\"/>Account Security"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-save me-1\"/>Update Profile"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<i class=\"fa fa-times-circle me-1\"/>Cancel Absence"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "<i class=\"fa fa-user me-1\"/> Profile"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-user me-2\"/>Guardian Information"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "<i class=\"fa fa-users me-1\"/> My Kids"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "<i class=\"fa fa-users me-2\"/>Linked Children"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "<i class=\"fa fa-users me-2\"/>My Children"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid ""
+"<select class=\"form-select\" id=\"reason_code\" name=\"reason_code\" "
+"required=\"\">\n"
+"                                        <option value=\"\">Select a reason..."
+"</option>\n"
+"                                        <option value=\"illness\">Illness</"
+"option>\n"
+"                                        <option value=\"injury\">Injury</"
+"option>\n"
+"                                        <option value=\"family\">Family "
+"Commitment</option>\n"
+"                                        <option value=\"school\">School "
+"Event</option>\n"
+"                                        <option value=\"vacation\">Vacation</"
+"option>\n"
+"                                        <option value=\"other\">Other</"
+"option>\n"
+"                                    </select>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<span class=\"badge bg-danger ms-1\">Overdue</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<span class=\"badge bg-danger\">Cancelled</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<span class=\"badge bg-danger\">Unpaid</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<span class=\"badge bg-success\">Completed</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<span class=\"badge bg-success\">Paid</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "<span class=\"badge bg-warning\">Partial</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<span class=\"badge bg-warning\">Suspended</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "<span class=\"text-muted\">Not assigned</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "<span class=\"text-muted\">Not provided</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "<span class=\"text-muted\">TBA</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "<strong>Child:</strong>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "<strong>Date:</strong>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid ""
+"<strong>Email:</strong> billing@academy.com<br/>\n"
+"                                <strong>Phone:</strong> (555) 123-4567"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "<strong>Session:</strong>"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.module.category,name:academy_core.module_category_academy
+#: model:ir.ui.menu,name:academy_core.menu_academy_root
+#: model:res.groups.privilege,name:academy_core.res_groups_privilege_academy
+msgid "Academy"
+msgstr "Академия"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__academy_guardian_child_ids
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__academy_guardian_child_ids
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_guardian_child_ids
+msgid "Academy Children"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_is_coach
+#: model:res.groups,name:academy_core.group_academy_coach
+msgid "Academy Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__academy_is_guardian
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__academy_is_guardian
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_is_guardian
+#: model:res.groups,name:academy_core.group_academy_guardian
+msgid "Academy Guardian"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,name:academy_core.group_academy_head_coach
+msgid "Academy Head Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model,name:academy_core.model_academy_player
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__academy_is_player
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__academy_is_player
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_is_player
+msgid "Academy Player"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,name:academy_core.group_academy_player_portal
+msgid "Academy Player Portal"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,name:academy_core.group_academy_site_admin
+msgid "Academy Site Admin"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model,name:academy_core.model_academy_skill_group
+msgid "Academy Skill Group"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__account_move_count
+msgid "Account Move Count"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_account_payable_id
+msgid "Account Payable"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_account_receivable_id
+msgid "Account Receivable"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Action"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__active
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__active
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_search
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_search_academy_guardian
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Active"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__active_lang_count
+msgid "Active Lang Count"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Active coaches"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_search_academy_guardian
+msgid "Active guardians"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_search
+msgid "Active players"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.actions.act_window,help:academy_core.action_academy_coach
+msgid "Add internal users flagged as coaches and manage their categories."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "Additional Details (Optional)"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__type
+msgid "Address Type"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__type_address_label
+msgid "Address Type Description"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__age_years
+msgid "Age (Years)"
+msgstr "Възраст (години)"
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "Age:"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__lang
+msgid ""
+"All the emails and documents sent to this contact will be translated in this "
+"language."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__elevation_allowed
+msgid "Allow Elevation"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player_elevation_wizard__assign_guardian_groups
+msgid ""
+"Also assign guardian portal groups if player should see sibling information."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "Amount"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_search
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_search_academy_guardian
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Archived"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Archived coaches"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_search_academy_guardian
+msgid "Archived guardians"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_search
+msgid "Archived players"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Associate"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields.selection,name:academy_core.selection__res_users__academy_coach_category__associate
+msgid "Associate Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__autopost_bills
+msgid "Auto-post bills"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__autopost_bills
+msgid "Automatically post bills for this trusted partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__available_invoice_template_pdf_report_ids
+msgid "Available Invoice Template Pdf Report"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__available_peppol_eas
+msgid "Available Peppol Eas"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__avatar_1920
+msgid "Avatar"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__avatar_1024
+msgid "Avatar 1024"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__avatar_128
+msgid "Avatar 128"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__avatar_256
+msgid "Avatar 256"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__avatar_512
+msgid "Avatar 512"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__bank_account_count
+msgid "Bank"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__bank_ids
+msgid "Banks"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__barcode
+msgid "Barcode"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "Billing"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_blacklisted
+msgid "Blacklist"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__phone_blacklisted
+msgid "Blacklisted Phone is Phone"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_bounce
+msgid "Bounce"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__can_publish
+msgid "Can Publish"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_elevation_wizard
+msgid "Cancel"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__channel_member_ids
+msgid "Channel Member"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__channel_ids
+msgid "Channels"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__is_company
+msgid "Check if the contact is a company, otherwise it is a person"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__employee
+msgid "Check this box if this contact is an Employee."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Child"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__city
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "City"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Close"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_coach_category
+msgid "Coach Category"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.actions.act_window,name:academy_core.action_academy_coach
+#: model:ir.ui.menu,name:academy_core.menu_academy_coaches
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_tree_academy_coach
+msgid "Coaches"
+msgstr "Треньори"
+
+#. module: academy_core
+#: model:res.groups,comment:academy_core.group_academy_coach
+msgid "Coaches with access to assigned players and sessions."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__code
+msgid "Code"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__peppol_eas
+msgid ""
+"Code used to identify the Endpoint for BIS Billing 3.0 and its derivatives.\n"
+"             List available at https://docs.peppol.eu/poacc/billing/3.0/"
+"codelist/eas/"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__color
+msgid "Color Index"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__commercial_partner_id
+msgid "Commercial Entity"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__ref_company_ids
+msgid "Companies that refers to partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_id
+msgid "Company"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_registry
+msgid "Company ID"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_registry_label
+msgid "Company ID Label"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_name
+msgid "Company Name"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__commercial_company_name
+msgid "Company Name Entity"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_registry_placeholder
+msgid "Company Registry Placeholder"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__company_type
+msgid "Company Type"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__contact_address
+msgid "Complete Address"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__complete_name
+msgid "Complete Name"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.ui.menu,name:academy_core.menu_academy_configuration
+msgid "Configuration"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model,name:academy_core.model_res_partner
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__child_ids
+msgid "Contact"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_form
+msgid "Contact Information"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_bounce
+msgid "Counter of the number of bounced emails for this contact"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__country_id
+msgid "Country"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__country_code
+msgid "Country Code"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_elevation_wizard
+msgid "Create Portal User"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model,website_form_label:academy_core.model_res_partner
+msgid "Create a Customer"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.actions.act_window,help:academy_core.action_academy_player
+msgid ""
+"Create and manage academy players, their guardians, and coach assignments."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.actions.act_window,help:academy_core.action_academy_guardian
+msgid "Create guardian contacts and link them to players."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.actions.act_window,help:academy_core.action_academy_skill_group
+msgid "Create skill group definitions matching the academy curriculum."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__create_uid
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__create_uid
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__create_date
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__create_date
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__credit_limit
+msgid "Credit Limit"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__credit_to_invoice
+msgid "Credit To Invoice"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__credit_limit
+msgid "Credit limit specific to this partner."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__currency_id
+msgid "Currency"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_payment_term_id
+msgid "Customer Payment Terms"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__customer_rank
+msgid "Customer Rank"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Dashboard"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Date"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__dob
+msgid "Date of Birth"
+msgstr "Роден"
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "Date of Birth:"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__days_sales_outstanding
+msgid "Days Sales Outstanding (DSO)"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__trust
+msgid "Degree of trust you have in this debtor"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__description
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_skill_group_form
+msgid "Description"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__display_invoice_edi_format
+msgid "Display Invoice Edi Format"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__display_invoice_template_pdf_report_id
+msgid "Display Invoice Template Pdf Report"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__display_name
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__display_name
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__display_name
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__display_name
+#: model:ir.model.fields,field_description:academy_core.field_res_users__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "Due Date"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__duplicate_bank_partner_ids
+msgid "Duplicate Bank Partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__partner_share
+msgid ""
+"Either customer (not a user), either shared user. Indicated the current "
+"partner is a customer without access or with a limited access created for "
+"sharing data."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_elevation_wizard
+msgid "Elevate Player"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_form
+msgid "Elevate to Portal"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,comment:academy_core.group_academy_player_portal
+msgid "Elevated player accounts with limited portal access."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__email
+msgid "Email"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Email <span class=\"text-danger\">*</span>"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "Email:"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__employee
+msgid "Employee"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__enforce_age_range
+msgid "Enforce Age Range"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Enrolled Children"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__phone_sanitized
+msgid ""
+"Field used to store sanitized phone number. Helps speeding up searches and "
+"comparisons."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__fiscal_country_codes
+msgid "Fiscal Country Codes"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__fiscal_country_group_codes
+msgid "Fiscal Country Group Codes"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_account_position_id
+msgid "Fiscal Position"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid ""
+"For billing inquiries or payment assistance, please contact the academy "
+"office."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__email_formatted
+msgid "Format email address \"Name <email@domain>\""
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__email_formatted
+msgid "Formatted Email"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Full Name <span class=\"text-danger\">*</span>"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_latitude
+msgid "Geo Latitude"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_longitude
+msgid "Geo Longitude"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.actions.act_window,name:academy_core.action_academy_guardian
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__guardian_ids
+#: model:ir.ui.menu,name:academy_core.menu_academy_guardians
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_list_academy_guardian
+msgid "Guardians"
+msgstr "Родители"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Head"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields.selection,name:academy_core.selection__res_users__academy_coach_category__head
+msgid "Head Coach"
+msgstr "Главен треньор"
+
+#. module: academy_core
+#: model:res.groups,comment:academy_core.group_academy_head_coach
+msgid "Head coaches with scheduling authority."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__id
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__id
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__id
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__id
+#: model:ir.model.fields,field_description:academy_core.field_res_users__id
+msgid "ID"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__im_status
+msgid "IM Status"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_has_error
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__is_blacklisted
+msgid ""
+"If the email address is on the blacklist, the contact won't receive mass "
+"mailing anymore, from any list"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__phone_sanitized_blacklisted
+msgid ""
+"If the sanitized phone number is on the blacklist, the contact won't receive "
+"mass mailing sms anymore, from any list"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__ignore_abnormal_invoice_amount
+msgid "Ignore Abnormal Invoice Amount"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__ignore_abnormal_invoice_date
+msgid "Ignore Abnormal Invoice Date"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__image_1920
+msgid "Image"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__image_1024
+msgid "Image 1024"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__image_128
+msgid "Image 128"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__image_256
+msgid "Image 256"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__image_512
+msgid "Image 512"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_skill_group__max_age
+msgid ""
+"Inclusive maximum age (years) for this skill group. Leave empty if open-"
+"ended."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_skill_group__min_age
+msgid "Inclusive minimum age (years) for this skill group."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__phone_blacklisted
+msgid ""
+"Indicates if a blacklisted sanitized phone number is a phone number. Helps "
+"distinguish which number is blacklisted             when there is both a "
+"mobile and phone field in a model."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__industry_id
+msgid "Industry"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__assign_guardian_groups
+msgid "Inherit Guardian Portal Groups"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__contact_address_inline
+msgid "Inlined Complete Address"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "Invoice #"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__invoice_edi_format_store
+msgid "Invoice Edi Format Store"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__invoice_template_pdf_report_id
+msgid "Invoice report"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__invoice_sending_method
+msgid "Invoice sending"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__invoice_ids
+msgid "Invoices"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_in_call
+msgid "Is In Call"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_peppol_edi_format
+msgid "Is Peppol Edi Format"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_public
+msgid "Is Public"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_published
+msgid "Is Published"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_ubl_format
+msgid "Is Ubl Format"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__is_company
+msgid "Is a Company"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__function
+msgid "Job Position"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__lang
+msgid "Language"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__write_uid
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__write_uid
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__write_date
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__write_date
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__lead_coach_id
+msgid "Lead Coach"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "Lead Coach:"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__login
+msgid "Login / Username"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__main_user_id
+msgid "Main User"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Manage your children's activities, view schedules, and stay updated."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__max_age
+msgid "Maximum Age"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__sale_warn_msg
+msgid "Message for Sales Order"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__min_age
+msgid "Minimum Age"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__mobile
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__mobile
+#: model:ir.model.fields,field_description:academy_core.field_res_users__mobile
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Mobile"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+msgid "My Kids"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "My Profile"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__name
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__name
+msgid "Name"
+msgstr "Име"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "No children are linked to your account."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "No outstanding invoices."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "No past sessions recorded."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+msgid "No payment history available."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+msgid "No upcoming sessions scheduled."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__email_normalized
+msgid "Normalized Email"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__comment
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__notes
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_form
+msgid "Notes"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__offline_since
+msgid "Offline since"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Other"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__parent_name
+msgid "Parent name"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_id
+msgid "Partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_company_registry_placeholder
+msgid "Partner Company Registry Placeholder"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__contract_ids
+msgid "Partner Contracts"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__use_partner_credit_limit
+msgid "Partner Limit"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_vat_placeholder
+msgid "Partner Vat Placeholder"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__same_company_registry_partner_id
+msgid "Partner with same Company Registry"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__same_vat_partner_id
+msgid "Partner with same Tax ID"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__payment_token_count
+msgid "Payment Token Count"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__payment_token_ids
+msgid "Payment Tokens"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__peppol_endpoint
+msgid "Peppol Endpoint"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__peppol_eas
+msgid "Peppol e-address (EAS)"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__phone
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Phone"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__phone_sanitized_blacklisted
+msgid "Phone Blacklisted"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__phone_mobile_search
+msgid "Phone Number"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Physical"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__player_id
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_form
+msgid "Player"
+msgstr "Играч"
+
+#. module: academy_core
+#: model:ir.model,name:academy_core.model_academy_player_elevation_wizard
+msgid "Player Elevation Wizard"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.actions.act_window,name:academy_core.action_academy_player
+#: model:ir.ui.menu,name:academy_core.menu_academy_players
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_list
+msgid "Players"
+msgstr "Играчи"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__email
+msgid "Portal Email"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__portal_user_id
+msgid "Portal User"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,comment:academy_core.group_academy_guardian
+msgid "Portal guardians for academy players."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_product_pricelist
+msgid "Pricelist"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__primary_guardian_id
+msgid "Primary Guardian"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__academy_primary_player_ids
+#: model:ir.model.fields,field_description:academy_core.field_res_partner__academy_primary_player_ids
+#: model:ir.model.fields,field_description:academy_core.field_res_users__academy_primary_player_ids
+msgid "Primary Player Relationships"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__properties
+msgid "Properties"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__properties_base_definition_id
+msgid "Properties Base Definition"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_inbound_payment_method_line_id
+msgid "Property Inbound Payment Method Line"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_outbound_payment_method_line_id
+msgid "Property Outbound Payment Method Line"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "Provide any additional information..."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+msgid "Reason <span class=\"text-danger\">*</span>"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__ref
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__reference
+msgid "Reference"
+msgstr "Код"
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__parent_id
+msgid "Related Company"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.absence_modal
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Report Absence"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__website_id
+msgid "Restrict to a specific website."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__rtc_session_ids
+msgid "Rtc Session"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__sale_order_count
+msgid "Sale Order Count"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__sale_order_ids
+msgid "Sales Order"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__user_id
+msgid "Salesperson"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__phone_sanitized
+msgid "Sanitized Number"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Search Coaches"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_search_academy_guardian
+msgid "Search Guardians"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_player_search
+msgid "Search Players"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__self
+msgid "Self"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player_elevation_wizard__send_portal_welcome
+msgid "Send Portal Welcome"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Senior"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields.selection,name:academy_core.selection__res_users__academy_coach_category__senior
+msgid "Senior Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__sequence
+msgid "Sequence"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Session"
+msgstr "Тренировка"
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Sessions"
+msgstr "Тренировки"
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__use_partner_credit_limit
+msgid "Set a value greater than 0.0 to activate a credit limit check"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__partner_share
+msgid "Share Partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_skill_group__code
+msgid "Short unique code used for references and integrations."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__show_credit_limit
+msgid "Show Credit Limit"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__signup_type
+msgid "Signup Token Type"
+msgstr ""
+
+#. module: academy_core
+#: model:res.groups,comment:academy_core.group_academy_site_admin
+msgid "Site administrators with configuration powers."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__skill_group_id
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_skill_group_form
+msgid "Skill Group"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Skill Group:"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.actions.act_window,name:academy_core.action_academy_skill_group
+#: model:ir.ui.menu,name:academy_core.menu_academy_skill_groups
+#: model_terms:ir.ui.view,arch_db:academy_core.view_academy_skill_group_list
+msgid "Skill Groups"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__specific_property_product_pricelist
+msgid "Specific Property Product Pricelist"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__state_id
+msgid "State"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__application_statistics
+msgid "Stats"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_billing
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Status"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__street
+msgid "Street"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Street Address"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Street Address 2"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__street2
+msgid "Street2"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_skill_group__capacity
+msgid "Suggested Capacity"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__supplier_rank
+msgid "Supplier Rank"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__category_id
+msgid "Tags"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__vat
+msgid "Tax ID"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__vat_label
+msgid "Tax ID Label"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Tennis"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.module.category,description:academy_core.module_category_academy
+msgid "Tennis academy management"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__country_code
+msgid ""
+"The ISO country code in two chars. \n"
+"You can use this field for quick search."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__vat
+msgid ""
+"The Tax Identification Number. Values here will be validated based on the "
+"country format. You can use '/' to indicate that the partner is not subject "
+"to tax."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__property_account_position_id
+msgid ""
+"The fiscal position determines the taxes/accounts used for this contact."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__website_absolute_url
+msgid "The full absolute URL to access the document through the website."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__website_url
+msgid "The full relative URL to access the document through the website."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__user_id
+msgid "The internal user in charge of this contact."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__company_registry
+msgid ""
+"The registry number of the company. Use it if it is different from the Tax "
+"ID. It must be unique across all partners of a same country"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__main_user_id
+msgid ""
+"There can be several users related to the same partner. When a single user "
+"is needed, this field attempts to find the most appropriate one."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__email_normalized
+msgid ""
+"This field is used to search on email address as the primary email field can "
+"contain more than strictly an email address."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Time"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__tz
+msgid "Timezone"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__tz_offset
+msgid "Timezone offset"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid ""
+"To change your password or manage account security settings, please visit:"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.guardian_portal_nav
+msgid "Toggle navigation"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__total_invoiced
+msgid "Total Invoiced"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__debit
+msgid "Total Payable"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__credit
+msgid "Total Receivable"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__credit
+msgid "Total amount this customer owes you."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__debit
+msgid "Total amount you have to pay to this vendor."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_sessions
+msgid "Type"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__peppol_endpoint
+msgid ""
+"Unique identifier used by the BIS Billing 3.0 and its derivatives, also "
+"known as 'Endpoint ID'."
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Upcoming Sessions"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_partner_form_academy_guardian
+msgid "Upgrade to Portal"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__barcode
+msgid "Use a barcode to identify this contact."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__property_product_pricelist
+msgid "Used for sales to the current partner"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model,name:academy_core.model_res_users
+msgid "User"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__user_ids
+msgid "Users"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__property_supplier_payment_term_id
+msgid "Vendor Payment Terms"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "View All Sessions"
+msgstr "Всички тренировки"
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "View Details"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "View My Kids"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website_published
+msgid "Visible on current website"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.view_users_search_academy_coach
+msgid "Visiting"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields.selection,name:academy_core.selection__res_users__academy_coach_category__visiting
+msgid "Visiting Coach"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__visitor_ids
+msgid "Visitors"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website_id
+msgid "Website"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website_absolute_url
+msgid "Website Absolute URL"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website
+msgid "Website Link"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__website_url
+msgid "Website URL"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+msgid "Welcome,"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__tz
+msgid ""
+"When printing documents and exporting/importing data, time values are "
+"computed according to this timezone.\n"
+"If the timezone is not set, UTC (Coordinated Universal Time) is used.\n"
+"Anywhere else, time values are computed according to the time offset of your "
+"web client."
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__zip
+msgid "Zip"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "Zip Code"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,help:academy_core.field_academy_player__days_sales_outstanding
+msgid ""
+"[(Total Receivable/Total Revenue) * number of days since the first invoice] "
+"for this customer"
+msgstr ""
+
+#. module: academy_core
+#: model:ir.model.fields,field_description:academy_core.field_academy_player__invoice_edi_format
+msgid "eInvoice format"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_guardian_home
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_kid_detail
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_kids
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid "years"
+msgstr ""
+
+#. module: academy_core
+#: model_terms:ir.ui.view,arch_db:academy_core.portal_my_profile
+msgid ""
+"| \n"
+"                                                    Age:"
+msgstr ""
