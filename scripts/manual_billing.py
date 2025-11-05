@@ -66,11 +66,12 @@ def main():
 
     print(f"Running manual billing for {target_date.isoformat()}")
 
-    invoice_summary = template_env.cron_generate_monthly_prepaid_invoices()
-    print(_format_summary("Invoice generation", invoice_summary))
-
+    # Process absences BEFORE generating invoices so credits can be automatically applied
     absence_summary = template_env.cron_reconcile_monthly_absences()
     print(_format_summary("Absence reconciliation", absence_summary))
+
+    invoice_summary = template_env.cron_generate_monthly_prepaid_invoices()
+    print(_format_summary("Invoice generation", invoice_summary))
 
     attendance_model = env.get("academy.attendance.billing")  # type: ignore[name-defined]
     if attendance_model:

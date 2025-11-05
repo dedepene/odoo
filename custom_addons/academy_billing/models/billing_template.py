@@ -264,7 +264,10 @@ class AcademyBillingTemplate(models.Model):
             invoice.action_post()
             invoice_ids.append(invoice.id)
 
-            # Apply existing credits
+            # Automatically apply existing credit notes (e.g., from previous month's acknowledged absences)
+            # This ensures guardians see invoices with credits already deducted.
+            # Note: For this to work, cron_reconcile_monthly_absences() must run BEFORE
+            # cron_generate_monthly_prepaid_invoices() so credit notes exist when invoices are created.
             credit_moves = self.env['account.move'].search([
                 ('move_type', '=', 'out_refund'),
                 ('partner_id', '=', guardian.id),
