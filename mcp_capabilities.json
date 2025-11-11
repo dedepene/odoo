@@ -1,0 +1,45 @@
+﻿{
+    "server":  {
+                   "name":  "Docs by LangChain",
+                   "version":  "1.0.0",
+                   "transport":  "http"
+               },
+    "capabilities":  {
+                         "tools":  {
+                                       "SearchDocsByLangChain":  {
+                                                                     "name":  "SearchDocsByLangChain",
+                                                                     "description":  "Search across the Docs by LangChain knowledge base to find relevant information, code examples, API references, and guides. Use this tool when you need to answer questions about Docs by LangChain, find specific documentation, understand how features work, or locate implementation details. The search returns contextual content with titles and direct links to the documentation pages.",
+                                                                     "method":  "",
+                                                                     "pathTemplate":  "",
+                                                                     "parameters":  [
+
+                                                                                    ],
+                                                                     "inputSchema":  {
+                                                                                         "type":  "object",
+                                                                                         "properties":  {
+                                                                                                            "query":  {
+                                                                                                                          "type":  "string",
+                                                                                                                          "description":  "A query to search the content with."
+                                                                                                                      }
+                                                                                                        },
+                                                                                         "required":  [
+                                                                                                          "query"
+                                                                                                      ]
+                                                                                     },
+                                                                     "executionParameters":  [
+
+                                                                                             ],
+                                                                     "securityRequirements":  [
+
+                                                                                              ],
+                                                                     "operationId":  "MintlifyDefaultSearch"
+                                                                 }
+                                   },
+                         "resources":  [
+
+                                       ],
+                         "prompts":  [
+
+                                     ]
+                     }
+}

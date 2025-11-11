@@ -2,6 +2,13 @@ tunnel: 13f34d3c-306f-4f7c-9e5a-835d3811452c
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
+  # Telegram bot webhook endpoint (port 443 accessible via domain)
+  - hostname: "dev.smarts4.homes"
+    service: http://localhost:8443
+    originRequest:
+      noTLSVerify: false
+      connectTimeout: 30s
+      
   # Wildcard for all subdomains
   - hostname: "*.playhub.bg"
     service: http://odoo-app:8069

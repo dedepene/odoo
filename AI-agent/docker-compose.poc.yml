@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  langchain-agent:
+    build: .
+    depends_on:
+      - redis
+      - postgres
+      #- mcp-server
+    env_file:
+      - .env
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-http://mcp-server:8000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/postgres}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    ports:
+      - "8443:8000"  # Changed to 8443 for Telegram webhook compatibility
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1"]
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  mcp-server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ODOO_URL=https://dev.smarts4.homes
+      - ODOO_DB=odoo
+      - ODOO_USERNAME=piratko@hotmail.com
+      - ODOO_API_KEY=d5b50d723c55b487cfe9445d1e2b5f9afdcfc150
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - MCP_DEBUG=false
+      - MCP_LOG_LEVEL=INFO
+      - CACHE_ENABLED=true
+      - CACHE_TTL=300
+      - CACHE_MAX_SIZE=1000
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres-data:
