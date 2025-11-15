@@ -38,13 +38,19 @@ class LangChainTelegramAgent:
         self.tools = list(tools)
         self.redis_url = redis_url
         self.session_ttl = session_ttl
+        
+        default_system_prompt = """You help parents of the tennis academy.
+
+- When a parent reports an absence, call report_absence with the player name from that message plus the date or session_id.
+- If the tool replies with a list of sessions, forward it to the parent and wait for a yes/no answer.
+- On a positive reply, call report_absence again with confirm_all=True; on a negative reply, answer "Нищо не записах. Има ли нещо друго?".
+- Speak in the parent's language, keep answers short, and stop once the tool confirms success."""
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    system_prompt
-                    or "You are an assistant helping tennis academy members. Use tools when needed."
-                    " Always respect the provided context.",
+                    system_prompt or default_system_prompt,
                 ),
                 MessagesPlaceholder(variable_name="chat_history"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -58,6 +64,7 @@ class LangChainTelegramAgent:
             model=model,
             temperature=temperature,
             api_key=api_key,
+            stream_usage=True,  # ← ADD THIS to enable token counts in streaming mode
         )
         self.agent = create_tool_calling_agent(self.llm, self.tools, prompt)
         self.executor = AgentExecutor(
@@ -65,6 +72,7 @@ class LangChainTelegramAgent:
             tools=self.tools,
             verbose=False,
             handle_parsing_errors=True,
+            max_iterations=25,  # Increased from default 15 to handle complex multi-step scenarios
         )
         self._history_runnable = RunnableWithMessageHistory(
             self.executor,
@@ -88,6 +96,22 @@ class LangChainTelegramAgent:
         user_context: Dict[str, Any],
         message: str,
     ) -> Dict[str, Any]:
+        # Trim message history to prevent agent from using old context
+        # This is critical for absence reporting where old session_ids in history
+        # cause the agent to bypass clarification
+        history = self._message_history(session_id)
+        
+        # Get current messages and keep only the last 6 (3 exchanges)
+        # This gives recent context but prevents poisoning from long history
+        messages = history.messages
+        if len(messages) > 6:
+            LOGGER.warning(f"Trimming message history from {len(messages)} to 6 messages")
+            # Clear all messages
+            history.clear()
+            # Re-add only the last 6
+            for msg in messages[-6:]:
+                history.add_message(msg)
+        
         for tool in self.tools:
             tool.set_user_context(user_context)
         context_dump = self._format_context(user_context)

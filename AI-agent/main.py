@@ -115,6 +115,12 @@ agent = LangChainTelegramAgent(
     system_prompt=(
         "You are the tennis academy assistant. Reflect the academy voice, be concise, and never"
         " speculate. Only answer with data you have or by calling tools.\n\n"
+        "CRITICAL RULES FOR ABSENCE REPORTING:\n"
+        "1. When a user wants to report an absence, ALWAYS use the 'report_absence' tool.\n"
+        "2. If user mentions a DATE (e.g., 'на 14 ноември', 'on November 14'), use the 'date' parameter in report_absence.\n"
+        "3. If the tool asks for clarification about which sessions, help the user understand the options and "
+        "then call report_absence again with the specific session_id(s) they choose.\n"
+        "4. NEVER create absence records directly using create_record - always use report_absence tool.\n\n"
         "IMPORTANT: When search_sessions returns results, they include session_id and player_id values "
         "in the format 'session_id=123' and 'player_id=456'. Extract these IDs directly from the text "
         "to use with report_absence or other tools. DO NOT call search_sessions again just to get IDs."
@@ -375,6 +381,8 @@ async def telegram_webhook(
     LOGGER.info("=== TELEGRAM WEBHOOK HIT - Raw request received ===")
     data = await request.json()
     LOGGER.info("Full webhook payload: %s", json.dumps(data, indent=2))
+    
+    # Handle regular text messages
     message = data.get("message") or {}
     LOGGER.info("Received Telegram webhook message: %s", message)
     text = message.get("text")
@@ -400,6 +408,7 @@ async def telegram_webhook(
         message=text,
     )
     reply = agent_result.get("output", "")
+    
     await log_audit(
         session,
         telegram_id=telegram_id,
@@ -453,6 +462,7 @@ async def send_telegram_message(chat_id: int, text: str) -> None:
         await telegram_bot.send_message(chat_id=chat_id, text=text)
     except TelegramError as exc:
         LOGGER.error("Failed to send Telegram message to %s: %s", chat_id, exc)
+
 
 
 # Include all routes under /bot prefix as well

@@ -106,9 +106,12 @@ class SearchSessionsParams(BaseModel):
 
 
 class ReportAbsenceParams(BaseModel):
-    session_id: int = Field(..., description="Session occurrence identifier")
-    player_id: int = Field(..., description="Player missing the session")
-    reason: Optional[str] = Field(None, description="Optional free text reason")
+    session_id: Optional[int] = Field(None, description="Direct session identifier (use this OR date)")
+    player_id: Optional[int] = Field(None, description="Player ID - normally resolved from player_name")
+    player_name: Optional[str] = Field(None, description="Player display name as provided by the parent")
+    date: Optional[str] = Field(None, description="ISO date (YYYY-MM-DD) used to locate sessions")
+    confirm_all: Optional[bool] = Field(None, description="Set to true after the parent confirms reporting all sessions on that date")
+    reason: Optional[str] = Field(None, description="Optional note from the parent")
 
 
 class GetInvoicesParams(BaseModel):
@@ -367,98 +370,299 @@ class SearchSessionsTool(MCPTool):
 
 class ReportAbsenceTool(MCPTool):
     name: str = "report_absence"
+    return_direct: bool = False
     description: str = (
-        "Use to record that a player will miss a scheduled session. "
-        "Requires session_id and player_id (extract from search_sessions results). "
-        "The reason is optional and will be automatically set if not provided."
+        "Create session absences. Pass player_name with date or session_id. "
+        "If multiple sessions are returned, ask the parent to confirm and call again with confirm_all=True."
     )
-    tool_name: str = "report_absence"  # Internal name, not an MCP tool
+    tool_name: str = "report_absence"
     args_schema: Type[BaseModel] = ReportAbsenceParams
 
-    async def _arun(self, *args: Any, **kwargs: Any) -> str:
-        """Report absence by creating a session absence record."""
-        self._ensure_authorized()
-        
-        session_id = kwargs.get("session_id")
-        player_id = kwargs.get("player_id")
-        reason = kwargs.get("reason") or "Отсъствие по желание на родителя"
-        
-        if not session_id or not player_id:
+    @staticmethod
+    def _derive_reason_code(reason: Optional[str]) -> str:
+        if not reason:
+            return "other"
+        lowered = reason.lower()
+        if any(keyword in lowered for keyword in ("болест", "болен", "illness", "sick")):
+            return "illness"
+        if any(keyword in lowered for keyword in ("травма", "контуз", "injury")):
+            return "injury"
+        if any(keyword in lowered for keyword in ("семей", "family")):
+            return "family"
+        if any(keyword in lowered for keyword in ("училищ", "school")):
+            return "school"
+        if any(keyword in lowered for keyword in ("ваканц", "почивк", "vacation", "holiday")):
+            return "vacation"
+        return "other"
+
+    async def _resolve_player(
+        self,
+        player_id: Optional[int],
+        player_name: Optional[str],
+    ) -> tuple[int, str]:
+        """Resolve the player id and return (id, display_name)."""
+
+        context_ids = self._user_context.get("player_ids", []) if self._user_context else []
+        if not context_ids:
+            raise RuntimeError("No players linked to your account")
+
+        player_records: List[Dict[str, Any]] = []
+        payload = await self._call_tool_json(
+            "search_records",
+            {
+                "model": "academy.player",
+                "domain": [("id", "in", context_ids)],
+                "fields": ["id", "name"],
+            },
+        )
+        if isinstance(payload, dict):
+            player_records = payload.get("records", [])
+        elif isinstance(payload, list):
+            player_records = payload
+
+        if not player_records:
+            raise RuntimeError("No players available for this user")
+
+        if player_id:
+            for record in player_records:
+                if record.get("id") == player_id:
+                    return player_id, record.get("name") or f"Играч {player_id}"
+            raise RuntimeError("Player is not linked to this account")
+
+        if not player_name:
+            raise RuntimeError("Player name is required when player_id is absent")
+
+        target = player_name.strip().lower()
+        matches = [
+            record
+            for record in player_records
+            if record.get("name") and target in record["name"].lower()
+        ]
+
+        if not matches:
+            available = ", ".join(filter(None, (p.get("name") for p in player_records)))
             raise RuntimeError(
-                "Both session_id and player_id are required to report absence. "
-                "Extract these from search_sessions output (e.g., 'session_id=123')."
+                f"Player '{player_name}' not found. Available: {available}"
             )
-        
+        if len(matches) > 1:
+            names = ", ".join(filter(None, (p.get("name") for p in matches)))
+            raise RuntimeError(
+                f"More than one player matches '{player_name}': {names}. Please use full name."
+            )
+
+        record = matches[0]
+        return record["id"], record.get("name") or player_name
+
+    async def _absence_exists(self, session_id: int, player_id: int) -> bool:
+        payload = await self._call_tool_json(
+            "search_records",
+            {
+                "model": "academy.session.absence",
+                "domain": [
+                    ("occurrence_id", "=", session_id),
+                    ("player_id", "=", player_id),
+                    ("state", "in", ["reported", "acknowledged"]),
+                ],
+                "fields": ["id"],
+                "limit": 1,
+            },
+        )
+        if isinstance(payload, dict):
+            return bool(payload.get("records"))
+        if isinstance(payload, list):
+            return bool(payload)
+        return False
+
+    async def _record_session_absence(
+        self,
+        session_id: int,
+        player_id: int,
+        reason: Optional[str],
+    ) -> str:
+        if await self._absence_exists(session_id, player_id):
+            return "exists"
+
         try:
-            # Check if absence already exists
-            existing_payload = await self._call_tool_json(
-                "search_records",
+            await self._call_tool_json(
+                "create_record",
                 {
                     "model": "academy.session.absence",
-                    "domain": [
-                        ("occurrence_id", "=", session_id),
-                        ("player_id", "=", player_id),
-                        ("state", "in", ["reported", "acknowledged"]),
-                    ],
-                    "fields": ["id", "state", "reason_code"],
-                    "limit": 1,
+                    "values": {
+                        "occurrence_id": session_id,
+                        "player_id": player_id,
+                        "reason_code": self._derive_reason_code(reason),
+                        "reason_note": reason or "",
+                    },
                 },
             )
+        except Exception as exc:  # noqa: BLE001 - need to inspect MCP client errors
+            if isinstance(exc, MCPClientError) and "already exists" in str(exc).lower():
+                return "exists"
+            raise
+        return "created"
+
+    @staticmethod
+    def _format_session_line(session: Dict[str, Any]) -> str:
+        start_value = session.get("start_datetime") or session.get("date")
+        when = SearchSessionsTool._format_datetime(start_value) or session.get("date", "")
+        session_type = SearchSessionsTool._format_session_type(session.get("session_type"))
+        group = session.get("skill_group_id")
+        title = session.get("name")
+        if isinstance(group, list) and len(group) > 1:
+            title = title or group[1]
+        session_id = session.get("id")
+        return f"- {when} – {title or 'Тренировка'} ({session_type}, session_id={session_id})"
+
+    async def _get_sessions_for_date(
+        self, player_id: int, target_date: str
+    ) -> List[Dict[str, Any]]:
+        """Get all sessions for a player on a specific date."""
+        context = self._user_context or {}
+        
+        # First, get the player's skill group
+        player_payload = await self._call_tool_json(
+            "get_record",
+            {
+                "model": "academy.player",
+                "ids": [player_id],
+                "fields": ["id", "skill_group_id"],
+            },
+        )
+        
+        skill_group_id = None
+        if isinstance(player_payload, dict):
+            records = player_payload.get("records", [])
+            if records:
+                skill_group = records[0].get("skill_group_id")
+                if isinstance(skill_group, list) and len(skill_group) > 0:
+                    skill_group_id = skill_group[0]
+        
+        # Build domain for sessions on the specified date
+        domain = [
+            ("date", "=", target_date),
+            ("state", "in", ["planned", "confirmed"]),
+        ]
+        
+        # Add OR conditions for player assignment
+        or_conditions = []
+        or_conditions.append(("player_ids", "in", [player_id]))
+        
+        if skill_group_id:
+            or_conditions.append(("skill_group_id", "=", skill_group_id))
+            # Also check skill_group_ids for multi-group sessions
+            or_conditions.append(("skill_group_ids", "in", [skill_group_id]))
+        
+        # Build the OR expression properly
+        if len(or_conditions) == 1:
+            domain.append(or_conditions[0])
+        elif len(or_conditions) == 2:
+            domain.extend(["|", or_conditions[0], or_conditions[1]])
+        elif len(or_conditions) == 3:
+            # For 3 conditions: |, |, cond1, cond2, cond3
+            domain.extend(["|", "|", or_conditions[0], or_conditions[1], or_conditions[2]])
+        
+        # Search for sessions on the specified date
+        session_payload = await self._call_tool_json(
+            "search_records",
+            {
+                "model": "academy.session.occurrence",
+                "domain": domain,
+                "fields": [
+                    "id",
+                    "name",
+                    "date",
+                    "start_datetime",
+                    "session_type",
+                    "skill_group_id",
+                    "coach_id",
+                ],
+                "order": "start_datetime,id",
+            },
+        )
+        
+        records = []
+        if isinstance(session_payload, dict):
+            records = session_payload.get("records", [])
+        elif isinstance(session_payload, list):
+            records = session_payload
             
-            existing_records = []
-            if isinstance(existing_payload, dict):
-                existing_records = existing_payload.get("records", [])
-            elif isinstance(existing_payload, list):
-                existing_records = existing_payload
-            
-            if existing_records:
-                # Absence already reported
-                return (
-                    f"✓ Отсъствието вече е отбелязано за играч {player_id} "
-                    f"в тренировка {session_id}."
-                )
-            else:
-                # Create new absence record
-                # Map reason text to reason_code (simple keyword matching)
-                reason_code = "other"  # default
-                reason_lower = reason.lower()
-                if any(word in reason_lower for word in ["болест", "болен", "болна", "illness", "sick"]):
-                    reason_code = "illness"
-                elif any(word in reason_lower for word in ["нараняване", "травма", "injury"]):
-                    reason_code = "injury"
-                elif any(word in reason_lower for word in ["семейств", "family"]):
-                    reason_code = "family"
-                elif any(word in reason_lower for word in ["училищ", "school"]):
-                    reason_code = "school"
-                elif any(word in reason_lower for word in ["ваканция", "почивка", "vacation"]):
-                    reason_code = "vacation"
-                
-                create_result = await self._call_tool_json(
-                    "create_record",
-                    {
-                        "model": "academy.session.absence",
-                        "values": {
-                            "occurrence_id": session_id,
-                            "player_id": player_id,
-                            "reason_code": reason_code,
-                            "reason_note": reason,
-                        },
-                    },
-                )
-                
-                return (
-                    f"✓ Отсъствието е отбелязано успешно. "
-                    f"Играч {player_id} ще отсъства от тренировка {session_id}. "
-                    f"Причина: {reason}"
-                )
-                
+        return records
+
+    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+        self._ensure_authorized()
+
+        session_id = kwargs.get("session_id")
+        player_id = kwargs.get("player_id")
+        player_name = kwargs.get("player_name")
+        date_param = kwargs.get("date")
+        confirm_all = bool(kwargs.get("confirm_all"))
+        reason = kwargs.get("reason")
+
+        try:
+            player_id, player_label = await self._resolve_player(player_id, player_name)
+        except RuntimeError as exc:
+            return str(exc)
         except MCPClientError as exc:
-            error_msg = str(exc)
-            if "Unknown tool" in error_msg:
-                raise RuntimeError(
-                    "MCP server tools not available. Please ensure the MCP server is running "
-                    "and properly configured with create_record, update_record, and search_records tools."
-                ) from exc
+            raise RuntimeError(f"Failed to load players: {exc}") from exc
+
+        try:
+            if session_id:
+                status = await self._record_session_absence(session_id, player_id, reason)
+                if status == "created":
+                    reason_info = f" Причина: {reason}." if reason else ""
+                    return (
+                        f"✓ Отбелязах отсъствието на {player_label} за тренировка {session_id}.{reason_info}"
+                    )
+                return (
+                    f"✓ Отсъствието вече е записано за {player_label} в тренировка {session_id}."
+                )
+
+            if not date_param:
+                raise RuntimeError("Provide either session_id or date when reporting absence")
+
+            sessions = await self._get_sessions_for_date(player_id, date_param)
+            if not sessions:
+                return f"Няма тренировки за {player_label} на {date_param}."
+
+            if len(sessions) == 1 or confirm_all:
+                target_sessions = sessions if (len(sessions) > 1 and confirm_all) else [sessions[0]]
+                created = 0
+                existing = 0
+                for session in target_sessions:
+                    sess_id = session.get("id")
+                    if not sess_id:
+                        continue
+                    result = await self._record_session_absence(sess_id, player_id, reason)
+                    if result == "created":
+                        created += 1
+                    elif result == "exists":
+                        existing += 1
+
+                total = len(target_sessions)
+                if created:
+                    if total > 1:
+                        reason_info = f" Причина: {reason}." if reason else ""
+                        return (
+                            f"✓ Отбелязах отсъствие за всички тренировки на {date_param} за {player_label}.{reason_info}"
+                        )
+                    reason_info = f" Причина: {reason}." if reason else ""
+                    return f"✓ Отбелязах отсъствието на {player_label} на {date_param}.{reason_info}"
+                if existing == total:
+                    if total > 1:
+                        return (
+                            f"✓ Отсъствията вече бяха отбелязани за всички тренировки на {date_param} за {player_label}."
+                        )
+                    return f"✓ Отсъствието вече беше отбелязано за {player_label} на {date_param}."
+                raise RuntimeError("Неуспешно записване на отсъствие за една или повече тренировки")
+
+            session_lines = [self._format_session_line(session) for session in sessions]
+            return (
+                f"Намерих повече от една тренировка на {date_param} за {player_label}:\n"
+                + "\n".join(session_lines)
+                + "\nДа отбележа отсъствие за всички? Отговорете 'да' за потвърждение или 'не' ако няма нужда. "
+                "Ако искате да отмените само една тренировка, моля използвайте портала."
+            )
+        except MCPClientError as exc:
             raise RuntimeError(f"Failed to report absence: {exc}") from exc
 
 
