@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     mcp_server_url: str = "http://mcp-server:8000"
     redis_url: str = "redis://redis:6379/0"
     database_url: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
-    llm_model: str = "gpt-4.1-mini"
+    #llm_model: str = "gpt-4.1-mini"
+    llm_model: str = "gpt-5-nano"
     session_ttl_seconds: int = 60 * 60 * 24
     otp_ttl_seconds: int = 300
     otp_code_length: int = 6
@@ -319,13 +320,27 @@ async def on_startup() -> None:
         telegram_bot = Bot(token=settings.telegram_bot_token)
     else:
         LOGGER.warning("TELEGRAM_BOT_TOKEN is not set; webhook replies will be skipped")
+    
+    # Initialize the agent's checkpointer at startup to maintain connection
+    LOGGER.info("Initializing agent checkpointer at startup...")
+    try:
+        await agent._initialize_agent()
+        LOGGER.info("Agent checkpointer initialized successfully")
+    except Exception as e:
+        LOGGER.error("Failed to initialize agent checkpointer: %s", e, exc_info=True)
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
+    # Cleanup agent resources
+    try:
+        await agent.cleanup()
+        LOGGER.info("Agent cleanup completed")
+    except Exception as e:
+        LOGGER.warning("Error during agent cleanup: %s", e)
+    
     await mcp_client.close()
     await redis_client.close()
-    await redis_client.wait_closed()
 
 
 @app.get("/healthz")
@@ -360,7 +375,18 @@ async def chat_endpoint(
         user_context=user_context(user),
         message=payload.message,
     )
-    reply = agent_result.get("output", "")
+    # LangChain v1 create_agent returns messages in the 'messages' key
+    # Extract the last AI message content as the reply
+    messages = agent_result.get("messages", [])
+    reply = ""
+    if messages:
+        # Get the last message (should be AI response)
+        last_message = messages[-1]
+        if hasattr(last_message, 'content'):
+            reply = last_message.content
+        elif isinstance(last_message, dict):
+            reply = last_message.get('content', '')
+    
     await log_audit(
         session,
         telegram_id=payload.telegram_id,
@@ -407,7 +433,17 @@ async def telegram_webhook(
         user_context=user_context(user),
         message=text,
     )
-    reply = agent_result.get("output", "")
+    # LangChain v1 create_agent returns messages in the 'messages' key
+    # Extract the last AI message content as the reply
+    messages = agent_result.get("messages", [])
+    reply = ""
+    if messages:
+        # Get the last message (should be AI response)
+        last_message = messages[-1]
+        if hasattr(last_message, 'content'):
+            reply = last_message.content
+        elif isinstance(last_message, dict):
+            reply = last_message.get('content', '')
     
     await log_audit(
         session,

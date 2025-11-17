@@ -20,10 +20,12 @@ services:
       - "8443:8000"  # Changed to 8443 for Telegram webhook compatibility
 
   redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--save", "60", "1"]
+    image: redis/redis-stack:latest
     ports:
       - "6379:6379"
+      - "8001:8001"  # RedisInsight web UI
+    environment:
+      - REDIS_ARGS=--save 60 1
 
   postgres:
     image: postgres:15-alpine

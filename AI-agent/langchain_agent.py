@@ -1,28 +1,53 @@
 """LangChain agent wiring for the Telegram PoC.
 
-This module configures a LangChain agent with MCP tools and Redis-backed message history.
+This module configures a modern LangChain v1 agent with MCP tools and Redis-backed
+message history via LangGraph checkpointing.
+
 When LangSmith environment variables are set (LANGSMITH_TRACING, LANGSMITH_API_KEY, etc.),
 all agent invocations are automatically traced to LangSmith for observability.
+
+Migration Note: This uses LangChain v1's create_agent API which replaces the legacy
+AgentExecutor + create_tool_calling_agent pattern with a simpler, unified approach
+built on LangGraph.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Iterable, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Iterable, Optional, TYPE_CHECKING
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain.agents import create_agent
+from langchain.agents.middleware import dynamic_prompt, ModelRequest
 from langchain_openai import ChatOpenAI
-from langchain_community.chat_message_histories import RedisChatMessageHistory
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 
 from mcp_tools import MCPTool
+
+if TYPE_CHECKING:
+    from langgraph.pregel import CompiledGraph
 
 LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class AgentContext:
+    """Runtime context passed to the agent for user-specific information."""
+    current_date: str
+    current_datetime: str
+    telegram_id: int
+    role: Optional[str]
+    player_ids: Optional[list]
+    odoo_partner_id: Optional[int]
+    odoo_user_id: Optional[int]
+
+
 class LangChainTelegramAgent:
-    """Wraps LangChain components needed by the FastAPI app."""
+    """Modern LangChain v1 agent using create_agent with Redis persistence.
+    
+    This replaces the legacy AgentExecutor + create_tool_calling_agent pattern
+    with a unified create_agent approach built on LangGraph.
+    """
 
     def __init__(
         self,
@@ -34,10 +59,25 @@ class LangChainTelegramAgent:
         api_key: Optional[str],
         system_prompt: Optional[str] = None,
         temperature: float = 0.0,
+        max_iterations: int = 25,
     ) -> None:
+        """Initialize the agent with tools and configuration.
+        
+        Args:
+            tools: MCP tools for the agent to use
+            redis_url: Redis connection URL for checkpointing
+            session_ttl: TTL for Redis keys (in seconds)
+            model: Model identifier (e.g., "gpt-4o-mini")
+            api_key: OpenAI API key
+            system_prompt: Custom system prompt (optional)
+            temperature: Model temperature (0.0 = deterministic)
+            max_iterations: Max tool calling iterations
+        """
         self.tools = list(tools)
         self.redis_url = redis_url
         self.session_ttl = session_ttl
+        self.model_name = model
+        self.max_iterations = max_iterations
         
         default_system_prompt = """You help parents of the tennis academy.
 
@@ -46,48 +86,94 @@ class LangChainTelegramAgent:
 - On a positive reply, call report_absence again with confirm_all=True; on a negative reply, answer "Нищо не записах. Има ли нещо друго?".
 - Speak in the parent's language, keep answers short, and stop once the tool confirms success."""
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    system_prompt or default_system_prompt,
-                ),
-                MessagesPlaceholder(variable_name="chat_history"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-                (
-                    "human",
-                    "Context: {context}\nMessage: {input}",
-                ),
-            ]
-        )
-        self.llm = ChatOpenAI(
+        self.system_prompt = system_prompt or default_system_prompt
+        
+        # Configure the model
+        self.model = ChatOpenAI(
             model=model,
             temperature=temperature,
             api_key=api_key,
-            stream_usage=True,  # ← ADD THIS to enable token counts in streaming mode
+            stream_usage=True,
         )
-        self.agent = create_tool_calling_agent(self.llm, self.tools, prompt)
-        self.executor = AgentExecutor(
-            agent=self.agent,
-            tools=self.tools,
-            verbose=False,
-            handle_parsing_errors=True,
-            max_iterations=25,  # Increased from default 15 to handle complex multi-step scenarios
-        )
-        self._history_runnable = RunnableWithMessageHistory(
-            self.executor,
-            self._message_history,
-            input_messages_key="input",
-            history_messages_key="chat_history",
-            output_messages_key="output",
+        
+        # Initialize Redis checkpointer for conversation persistence
+        self._checkpointer: Optional[AsyncRedisSaver] = None
+        self._checkpointer_cm = None  # Store context manager reference
+        self._checkpointer_url = redis_url
+        
+        # Agent will be initialized lazily with checkpointer
+        if TYPE_CHECKING:
+            from langgraph.pregel import CompiledGraph
+            self.agent: Optional[CompiledGraph] = None
+        else:
+            self.agent = None
+        
+        LOGGER.info(
+            "LangChain agent configuration ready: model=%s, tools=%d, max_iterations=%d",
+            model, len(self.tools), max_iterations
         )
 
-    def _message_history(self, session_id: str) -> RedisChatMessageHistory:
-        return RedisChatMessageHistory(
-            session_id=session_id,
-            url=self.redis_url,
-            ttl=self.session_ttl,
+    async def _initialize_agent(self):
+        """Initialize the agent with checkpointer (must be called before first use)."""
+        if self.agent is not None:
+            return
+            
+        # Initialize Redis checkpointer
+        if self._checkpointer is None:
+            try:
+                # from_conn_string returns a context manager, enter it to get the checkpointer
+                self._checkpointer_cm = AsyncRedisSaver.from_conn_string(self._checkpointer_url)
+                self._checkpointer = await self._checkpointer_cm.__aenter__()
+                
+                # Setup Redis indices/structures on first use (idempotent)
+                # This creates the necessary RediSearch indices and data structures
+                await self._checkpointer.asetup()
+                LOGGER.info("Initialized AsyncRedisSaver checkpointer with Redis indices")
+            except Exception as e:
+                LOGGER.error("Failed to initialize Redis checkpointer: %s", e, exc_info=True)
+                raise
+        
+        # Dynamic prompt middleware to inject user context
+        @dynamic_prompt
+        def context_aware_prompt(request: ModelRequest) -> str:
+            """Inject user context into system prompt."""
+            base = self.system_prompt
+            
+            # Add context from runtime if available
+            if hasattr(request.runtime, 'context') and request.runtime.context:
+                ctx = request.runtime.context
+                context_parts = []
+                
+                if hasattr(ctx, 'current_date'):
+                    context_parts.append(f"Current date: {ctx.current_date}")
+                if hasattr(ctx, 'telegram_id'):
+                    context_parts.append(f"User Telegram ID: {ctx.telegram_id}")
+                if hasattr(ctx, 'role'):
+                    context_parts.append(f"User role: {ctx.role}")
+                if hasattr(ctx, 'player_ids') and ctx.player_ids:
+                    context_parts.append(f"Player IDs: {ctx.player_ids}")
+                
+                if context_parts:
+                    base += "\n\nUser Context:\n" + "\n".join(context_parts)
+            
+            # Trim conversation if too long
+            message_count = len(request.messages)
+            if message_count > 10:
+                base += "\n\nNote: This is a long conversation - keep responses concise."
+            
+            return base
+        
+        # Create the agent with modern v1 API (already compiled with checkpointer)
+        # Note: dynamic_prompt middleware goes in middleware=[], not system_prompt=
+        self.agent = create_agent(
+            model=self.model,
+            tools=self.tools,
+            middleware=[context_aware_prompt],  # Dynamic prompt as middleware
+            context_schema=AgentContext,
+            checkpointer=self._checkpointer,  # Pass checkpointer to create_agent
         )
+        
+        LOGGER.info("LangChain v1 agent initialized with checkpointer")
 
     async def arun(
         self,
@@ -96,40 +182,134 @@ class LangChainTelegramAgent:
         user_context: Dict[str, Any],
         message: str,
     ) -> Dict[str, Any]:
-        # Trim message history to prevent agent from using old context
-        # This is critical for absence reporting where old session_ids in history
-        # cause the agent to bypass clarification
-        history = self._message_history(session_id)
+        """Run the agent with a user message.
         
-        # Get current messages and keep only the last 6 (3 exchanges)
-        # This gives recent context but prevents poisoning from long history
-        messages = history.messages
-        if len(messages) > 6:
-            LOGGER.warning(f"Trimming message history from {len(messages)} to 6 messages")
-            # Clear all messages
-            history.clear()
-            # Re-add only the last 6
-            for msg in messages[-6:]:
-                history.add_message(msg)
+        Args:
+            session_id: Unique conversation identifier (thread_id)
+            user_context: User-specific context (date, role, player IDs, etc.)
+            message: User message text
+            
+        Returns:
+            Agent response with 'messages' key containing conversation
+        """
+        # Convert user_context dict to AgentContext dataclass
+        context = AgentContext(
+            current_date=user_context.get("current_date", ""),
+            current_datetime=user_context.get("current_datetime", ""),
+            telegram_id=user_context.get("telegram_id", 0),
+            role=user_context.get("role"),
+            player_ids=user_context.get("player_ids"),
+            odoo_partner_id=user_context.get("odoo_partner_id"),
+            odoo_user_id=user_context.get("odoo_user_id"),
+        )
         
+        # Set user context on tools (for RBAC and context-aware operations)
         for tool in self.tools:
             tool.set_user_context(user_context)
-        context_dump = self._format_context(user_context)
+        
         try:
-            result = await self._history_runnable.ainvoke(
-                {"input": message, "context": context_dump},
-                config={"configurable": {"session_id": session_id}},
+            # Ensure agent is initialized
+            await self._initialize_agent()
+            assert self.agent is not None, "Agent initialization failed"
+            
+            # Invoke agent with message and context (agent is already compiled with checkpointer)
+            result = await self.agent.ainvoke(
+                {
+                    "messages": [
+                        {"role": "user", "content": message}
+                    ]
+                },
+                config={
+                    "configurable": {
+                        "thread_id": session_id,
+                    },
+                    "recursion_limit": self.max_iterations,
+                },
+                context=context,
             )
+            
+            LOGGER.debug(
+                "Agent invocation complete for session=%s, message_count=%d",
+                session_id, len(result.get("messages", []))
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Check if this is the corrupted checkpoint error
+            error_msg = str(e)
+            if "tool_calls" in error_msg and "tool_call_id" in error_msg:
+                LOGGER.warning(
+                    "Detected corrupted checkpoint for session=%s (incomplete tool_calls). Clearing history and retrying.",
+                    session_id
+                )
+                # Clear the corrupted checkpoint
+                await self.aclear_history(session_id)
+                
+                # Retry the invocation with fresh history
+                result = await self.agent.ainvoke(
+                    {
+                        "messages": [
+                            {"role": "user", "content": message}
+                        ]
+                    },
+                    config={
+                        "configurable": {
+                            "thread_id": session_id,
+                        },
+                        "recursion_limit": self.max_iterations,
+                    },
+                    context=context,
+                )
+                
+                LOGGER.info("Successfully recovered from corrupted checkpoint for session=%s", session_id)
+                return result
+            
+            # Re-raise other errors
+            raise
+            
         finally:
+            # Clear tool context
             for tool in self.tools:
                 tool.clear_user_context()
-        return result
 
     async def aclear_history(self, session_id: str) -> None:
-        history = self._message_history(session_id)
-        await history.clear()
+        """Clear conversation history for a session.
+        
+        Args:
+            session_id: Thread ID to clear
+        """
+        # Ensure agent is initialized (which initializes checkpointer)
+        await self._initialize_agent()
+        
+        # Get all checkpoints for this thread
+        config = {"configurable": {"thread_id": session_id}}
+        
+        # Delete checkpoints by iterating and removing
+        # Note: AsyncRedisSaver doesn't have a direct clear method,
+        # so we need to manually delete the Redis keys
+        import redis.asyncio as aioredis
+        
+        redis_client = aioredis.from_url(self.redis_url, decode_responses=True)
+        try:
+            # Redis key pattern for LangGraph checkpoints
+            pattern = f"checkpoint:{session_id}:*"
+            keys = await redis_client.keys(pattern)
+            if keys:
+                await redis_client.delete(*keys)
+                LOGGER.info("Cleared %d checkpoint keys for session=%s", len(keys), session_id)
+        finally:
+            await redis_client.close()
 
-    def _format_context(self, context: Dict[str, Any]) -> str:
-        safe_items = {k: v for k, v in context.items() if v is not None}
-        pieces = [f"{key}: {value}" for key, value in safe_items.items()]
-        return "\n".join(pieces)
+    async def cleanup(self) -> None:
+        """Cleanup resources (close Redis connections)."""
+        if self._checkpointer is not None:
+            # Exit the context manager properly
+            try:
+                await self._checkpointer.__aexit__(None, None, None)
+                LOGGER.info("Cleaned up AsyncRedisSaver resources")
+            except Exception as e:
+                LOGGER.warning("Error cleaning up checkpointer: %s", e)
+            finally:
+                self._checkpointer = None
+

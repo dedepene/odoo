@@ -30,9 +30,16 @@ class MCPClient:
         if self._client is None:
             async with self._lock:
                 if self._client is None:
+                    # Configure timeout for all stages to prevent hangs
+                    timeout = httpx.Timeout(
+                        connect=self._timeout,
+                        read=self._timeout,
+                        write=self._timeout,
+                        pool=self._timeout,
+                    )
                     self._client = httpx.AsyncClient(
                         base_url=self._base_url,
-                        timeout=self._timeout,
+                        timeout=timeout,
                         headers={"Accept": "application/json"},
                     )
         return self._client

@@ -217,8 +217,10 @@ class SearchSessionsTool(MCPTool):
                 if all_player_names:
                     names_list = ", ".join(all_player_names)
                     return (
-                        f"No player named '{player_name_filter}' found in your account. "
-                        f"You can only view sessions for your own players: {names_list}."
+                        f"❌ ГРЕШКА: Играч с име '{player_name_filter}' не е намерен във вашия акаунт.\n\n"
+                        f"Можете да преглеждате тренировки и да отбелязвате отсъствия САМО за вашите собствени деца:\n"
+                        f"• {names_list}\n\n"
+                        f"Ако искате информация за друг играч, моля свържете се с администрацията на академията."
                     )
                 else:
                     return "No players are linked to your account."
@@ -442,7 +444,10 @@ class ReportAbsenceTool(MCPTool):
         if not matches:
             available = ", ".join(filter(None, (p.get("name") for p in player_records)))
             raise RuntimeError(
-                f"Player '{player_name}' not found. Available: {available}"
+                f"❌ ГРЕШКА: Играч с име '{player_name}' не е намерен във вашия акаунт.\n\n"
+                f"Можете да отбелязвате отсъствия САМО за вашите собствени деца:\n"
+                f"• {available}\n\n"
+                f"Ако искате да отбележите отсъствие за друг играч, моля свържете се с администрацията на академията."
             )
         if len(matches) > 1:
             names = ", ".join(filter(None, (p.get("name") for p in matches)))
@@ -598,13 +603,15 @@ class ReportAbsenceTool(MCPTool):
         confirm_all = bool(kwargs.get("confirm_all"))
         reason = kwargs.get("reason")
 
+        # Resolve player - propagate errors clearly to user
         try:
             player_id, player_label = await self._resolve_player(player_id, player_name)
+        except MCPClientError as exc:
+            return f"❌ Не успях да заредя информация за играчите. Моля опитайте отново след малко. Грешка: {exc}"
         except RuntimeError as exc:
             return str(exc)
-        except MCPClientError as exc:
-            raise RuntimeError(f"Failed to load players: {exc}") from exc
 
+        # Process absence recording
         try:
             if session_id:
                 status = await self._record_session_absence(session_id, player_id, reason)
@@ -663,7 +670,9 @@ class ReportAbsenceTool(MCPTool):
                 "Ако искате да отмените само една тренировка, моля използвайте портала."
             )
         except MCPClientError as exc:
-            raise RuntimeError(f"Failed to report absence: {exc}") from exc
+            return f"❌ Не успях да запиша отсъствието. Моля опитайте отново след малко. Грешка: {exc}"
+        except RuntimeError as exc:
+            return f"❌ {exc}"
 
 
 class GetInvoicesTool(MCPTool):
