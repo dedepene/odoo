@@ -160,6 +160,33 @@ class LangChainTelegramAgent:
             message_count = len(request.messages)
             if message_count > 10:
                 base += "\n\nNote: This is a long conversation - keep responses concise."
+
+            # Truncate restored messages to the most recent ones to limit prompt size.
+            # This prevents very long persisted histories from being sent as full context
+            # to the model on every invocation (which can cause huge prompt token usage).
+            MAX_MESSAGES = 12
+            if hasattr(request, "messages") and isinstance(request.messages, list):
+                if len(request.messages) > MAX_MESSAGES:
+                    # Attempt to obtain a thread id for logging; fall back to None
+                    thread_id = None
+                    try:
+                        cfg = getattr(request, "runtime", None)
+                        if cfg is not None:
+                            # runtime may expose configurable dict or attributes
+                            thread_id = getattr(cfg, "configurable", None)
+                            if isinstance(thread_id, dict):
+                                thread_id = thread_id.get("thread_id")
+                    except Exception:
+                        thread_id = None
+
+                    LOGGER.debug(
+                        "Truncating restored messages for thread=%s: %d -> %d",
+                        thread_id,
+                        len(request.messages),
+                        MAX_MESSAGES,
+                    )
+                    # Keep only the last MAX_MESSAGES entries
+                    request.messages = request.messages[-MAX_MESSAGES:]
             
             return base
         
