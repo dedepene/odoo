@@ -229,7 +229,30 @@ class SearchSessionsTool(MCPTool):
         if not players:
             return "No players are linked to your account."
 
-        start_date = kwargs.get("date_from") or date.today().isoformat()
+        # GUARDRAIL: Ensure date_from is never before today when searching for "next" sessions
+        # Get the current date from user context (if available) or use today
+        today_str = context.get("current_date") or date.today().isoformat()
+        today_date = date.fromisoformat(today_str)
+        
+        start_date_param = kwargs.get("date_from")
+        if start_date_param:
+            try:
+                start_date_obj = date.fromisoformat(start_date_param)
+                # If requested date is in the past, use today instead
+                if start_date_obj < today_date:
+                    LOGGER.info(
+                        "Guardrail: Adjusted date_from from %s to %s (today) to prevent showing past sessions",
+                        start_date_param, today_str
+                    )
+                    start_date = today_str
+                else:
+                    start_date = start_date_param
+            except (ValueError, TypeError):
+                # If parsing fails, use today
+                start_date = today_str
+        else:
+            start_date = today_str
+            
         end_date = kwargs.get("date_to")
         coach_id = kwargs.get("coach_id")
         session_type = kwargs.get("session_type")
@@ -373,6 +396,7 @@ class SearchSessionsTool(MCPTool):
 class ReportAbsenceTool(MCPTool):
     name: str = "report_absence"
     return_direct: bool = False
+    requires_confirmation: bool = True
     description: str = (
         "Create session absences. Pass player_name with date or session_id. "
         "If multiple sessions are returned, ask the parent to confirm and call again with confirm_all=True."
@@ -631,11 +655,26 @@ class ReportAbsenceTool(MCPTool):
             if not sessions:
                 return f"Няма тренировки за {player_label} на {date_param}."
 
-            if len(sessions) == 1 or confirm_all:
-                target_sessions = sessions if (len(sessions) > 1 and confirm_all) else [sessions[0]]
+            # AUTOMATIC CONFIRMATION: If only 1 session on the date, record immediately
+            # MANUAL CONFIRMATION REQUIRED: Only if multiple sessions and confirm_all not set
+            if len(sessions) == 1:
+                # Single session - record immediately without asking
+                sess_id = sessions[0].get("id")
+                if not sess_id:
+                    raise RuntimeError("Тренировката няма валиден ID")
+                
+                result = await self._record_session_absence(sess_id, player_id, reason)
+                if result == "created":
+                    reason_info = f" Причина: {reason}." if reason else ""
+                    return f"✓ Отбелязах отсъствието на {player_label} на {date_param}.{reason_info}"
+                return f"✓ Отсъствието вече беше отбелязано за {player_label} на {date_param}."
+            
+            # Multiple sessions - need confirmation
+            if confirm_all:
+                # Parent confirmed - record all sessions
                 created = 0
                 existing = 0
-                for session in target_sessions:
+                for session in sessions:
                     sess_id = session.get("id")
                     if not sess_id:
                         continue
@@ -645,29 +684,24 @@ class ReportAbsenceTool(MCPTool):
                     elif result == "exists":
                         existing += 1
 
-                total = len(target_sessions)
+                total = len(sessions)
                 if created:
-                    if total > 1:
-                        reason_info = f" Причина: {reason}." if reason else ""
-                        return (
-                            f"✓ Отбелязах отсъствие за всички тренировки на {date_param} за {player_label}.{reason_info}"
-                        )
                     reason_info = f" Причина: {reason}." if reason else ""
-                    return f"✓ Отбелязах отсъствието на {player_label} на {date_param}.{reason_info}"
+                    return (
+                        f"✓ Отбелязах отсъствие за всички тренировки на {date_param} за {player_label}.{reason_info}"
+                    )
                 if existing == total:
-                    if total > 1:
-                        return (
-                            f"✓ Отсъствията вече бяха отбелязани за всички тренировки на {date_param} за {player_label}."
-                        )
-                    return f"✓ Отсъствието вече беше отбелязано за {player_label} на {date_param}."
+                    return (
+                        f"✓ Отсъствията вече бяха отбелязани за всички тренировки на {date_param} за {player_label}."
+                    )
                 raise RuntimeError("Неуспешно записване на отсъствие за една или повече тренировки")
-
+            
+            # Multiple sessions without confirmation - ask parent
             session_lines = [self._format_session_line(session) for session in sessions]
             return (
-                f"Намерих повече от една тренировка на {date_param} за {player_label}:\n"
+                f"{player_label} има {len(sessions)} тренировки на {date_param}:\n"
                 + "\n".join(session_lines)
-                + "\nДа отбележа отсъствие за всички? Отговорете 'да' за потвърждение или 'не' ако няма нужда. "
-                "Ако искате да отмените само една тренировка, моля използвайте портала."
+                + "\n\nИскате ли да отбележа отсъствие за всички сесии? Отговорете 'да' за всички, или посочете session_id за конкретна сесия."
             )
         except MCPClientError as exc:
             return f"❌ Не успях да запиша отсъствието. Моля опитайте отново след малко. Грешка: {exc}"

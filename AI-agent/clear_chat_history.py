@@ -1,5 +1,6 @@
 """Utility script to clear chat history from Redis for testing."""
 
+import os
 import redis
 import sys
 from typing import Optional
@@ -11,9 +12,17 @@ def clear_chat_history(thread_id: Optional[str] = None):
         thread_id: Specific thread ID to clear (e.g., "telegram:1751336201")
                   If None, will prompt for confirmation to clear all.
     """
-    # Connect to Redis running in Docker container
-    # Port 6379 is exposed from ai-agent-redis-1 container
-    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    # Connect to Redis. Prefer REDIS_URL (docker-compose service `redis`),
+    # otherwise fall back to localhost:6379 for local setups.
+    # docker-compose.poc.yml defines `redis` service and sets
+    # REDIS_URL=redis://redis:6379/0 which is reachable from other containers.
+    redis_url = os.environ.get('REDIS_URL')
+    if redis_url:
+        r = redis.from_url(redis_url, decode_responses=True)
+    else:
+        # Port 6379 is exposed to host by the compose file, so localhost still works when
+        # running this script on the host machine.
+        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     
     try:
         if thread_id:

@@ -14,13 +14,15 @@ built on LangGraph.
 from __future__ import annotations
 
 import logging
+import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional, TYPE_CHECKING
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import dynamic_prompt, ModelRequest
+from langchain.agents.middleware import dynamic_prompt, ModelRequest, after_model, wrap_tool_call
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+from langchain_core.messages import AIMessage, ToolMessage
 
 from mcp_tools import MCPTool
 
@@ -38,6 +40,7 @@ class AgentContext:
     telegram_id: int
     role: Optional[str]
     player_ids: Optional[list]
+    player_names: Optional[Dict[str, int]]  # Map of player name to player ID
     odoo_partner_id: Optional[int]
     odoo_user_id: Optional[int]
 
@@ -79,12 +82,26 @@ class LangChainTelegramAgent:
         self.model_name = model
         self.max_iterations = max_iterations
         
-        default_system_prompt = """You help parents of the tennis academy.
+        default_system_prompt = """You are a helpful assistant for parents at a tennis academy.
 
-- When a parent reports an absence, call report_absence with the player name from that message plus the date or session_id.
-- If the tool replies with a list of sessions, forward it to the parent and wait for a yes/no answer.
-- On a positive reply, call report_absence again with confirm_all=True; on a negative reply, answer "Нищо не записах. Има ли нещо друго?".
-- Speak in the parent's language, keep answers short, and stop once the tool confirms success."""
+Your capabilities:
+1. search_sessions - Find upcoming training sessions
+2. report_absence - Record player absences
+3. get_invoices - Check invoices
+4. get_contact_info - Get contact information
+
+For requests outside these capabilities, say: "Това не мога да направя през чата. Моля използвайте порталa на академията."
+
+Absence workflow:
+1. Extract reason from parent's message (болна→illness, семейни причини→family reasons, etc.)
+2. CRITICAL: When reporting absence by DATE, ALWAYS use ONLY the 'date' parameter (NEVER use 'session_id')
+   - This lets the tool detect multiple sessions and ask for confirmation
+   - Tool will handle single vs multiple session logic automatically
+3. If tool asks for confirmation about multiple sessions, wait for user response
+4. After confirmation, call report_absence again with confirm_all=True or specific session_id
+5. After tool succeeds: Confirm briefly
+
+Always use current date from context. Be concise."""
 
         self.system_prompt = system_prompt or default_system_prompt
         
@@ -133,6 +150,115 @@ class LangChainTelegramAgent:
                 LOGGER.error("Failed to initialize Redis checkpointer: %s", e, exc_info=True)
                 raise
         
+        # Store last report_absence call details for after_model to use
+        last_absence_details = {"player_name": None, "date": None, "confirm_all": False}
+        
+        # Middleware to capture tool call arguments from report_absence
+        @wrap_tool_call
+        async def capture_absence_details(request, handler):
+            """Capture player_name, date, and confirm_all from report_absence tool calls."""
+            tool_call = request.tool_call
+            tool_name = tool_call.get("name")
+            
+            # Capture details if this is report_absence
+            if tool_name == "report_absence":
+                args = tool_call.get("args", {})
+                last_absence_details["player_name"] = args.get("player_name")
+                last_absence_details["date"] = args.get("date")
+                last_absence_details["confirm_all"] = bool(args.get("confirm_all"))
+                LOGGER.info(
+                    f"Captured report_absence details: player_name={last_absence_details['player_name']}, "
+                    f"date={last_absence_details['date']}, confirm_all={last_absence_details['confirm_all']}"
+                )
+            
+            # Execute the tool normally
+            return await handler(request)
+        
+        # Middleware to replace AI response with template after successful tool execution
+        @after_model
+        def replace_tool_response_with_template(state, runtime):
+            """Replace AI response with a template after successful report_absence tool execution.
+            
+            This ensures the agent cannot offer additional services or ask follow-up questions.
+            We simply confirm the action and ask if the user needs anything else.
+            """
+            from langgraph.runtime import Runtime
+            
+            # Get messages from state
+            messages = state.get("messages", [])
+            if not messages:
+                return None
+            
+            last_message = messages[-1]
+            
+            # Only process AIMessage responses (not tool calls)
+            if not isinstance(last_message, AIMessage):
+                return None
+            
+            # CRITICAL: If the last AI message has tool_calls, the tools haven't executed yet
+            # Don't replace the response - let the tools execute first
+            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                return None
+            
+            # Look for the most recent ToolMessage to check if report_absence was called
+            recent_tool_message = None
+            for msg in reversed(messages[-5:]):
+                if isinstance(msg, ToolMessage):
+                    recent_tool_message = msg
+                    break
+            
+            if not recent_tool_message:
+                return None
+            
+            # Check if the tool was report_absence
+            tool_name = getattr(recent_tool_message, 'name', None)
+            if tool_name != 'report_absence':
+                return None
+            
+            # Check if the tool message is asking for confirmation (contains question mark)
+            # If so, don't replace - let the agent ask the user
+            tool_content = getattr(recent_tool_message, 'content', '')
+            if '?' in tool_content or 'Искате ли' in tool_content:
+                LOGGER.info("Tool is asking for confirmation - preserving agent's question")
+                return None
+            
+            # Get player_name, date, and confirm_all from captured details
+            player_name = last_absence_details.get("player_name")
+            date = last_absence_details.get("date")
+            confirm_all = last_absence_details.get("confirm_all")
+            
+            # Build the template response
+            if player_name and date:
+                if confirm_all:
+                    # Multiple sessions confirmed
+                    template_response = f"Разбрано. Регистрирах отсъствие за всички сесии на {date} за {player_name}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                else:
+                    # Single session
+                    template_response = f"Разбрано. Регистрирах отсъствие за {player_name} на {date}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+            else:
+                # Fallback if we couldn't capture details
+                template_response = "Разбрано. Отсъствието е регистрирано. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+            
+            LOGGER.info(
+                f"Replaced AI response with template after report_absence. "
+                f"Player: {player_name}, Date: {date}, Confirm_all: {confirm_all}, Template: {template_response}"
+            )
+            
+            # Clear the captured details for next invocation
+            last_absence_details["player_name"] = None
+            last_absence_details["date"] = None
+            last_absence_details["confirm_all"] = False
+            
+            # Create a new AIMessage with template content
+            new_message = AIMessage(
+                content=template_response,
+                additional_kwargs=last_message.additional_kwargs if hasattr(last_message, 'additional_kwargs') else {},
+                response_metadata=last_message.response_metadata if hasattr(last_message, 'response_metadata') else {},
+            )
+            
+            # Return state update with replaced message
+            return {"messages": [new_message]}
+        
         # Dynamic prompt middleware to inject user context
         @dynamic_prompt
         def context_aware_prompt(request: ModelRequest) -> str:
@@ -150,7 +276,14 @@ class LangChainTelegramAgent:
                     context_parts.append(f"User Telegram ID: {ctx.telegram_id}")
                 if hasattr(ctx, 'role'):
                     context_parts.append(f"User role: {ctx.role}")
-                if hasattr(ctx, 'player_ids') and ctx.player_ids:
+                
+                # Include player names mapped to IDs to avoid confusion
+                if hasattr(ctx, 'player_names') and ctx.player_names:
+                    # player_names should be a dict like {"Стела Величкова": 6, "Далия Величкова": 7}
+                    player_list = [f"{name} (ID: {pid})" for name, pid in ctx.player_names.items()]
+                    context_parts.append(f"Players: {', '.join(player_list)}")
+                elif hasattr(ctx, 'player_ids') and ctx.player_ids:
+                    # Fallback if player_names not available
                     context_parts.append(f"Player IDs: {ctx.player_ids}")
                 
                 if context_parts:
@@ -187,15 +320,86 @@ class LangChainTelegramAgent:
                     )
                     # Keep only the last MAX_MESSAGES entries
                     request.messages = request.messages[-MAX_MESSAGES:]
+
+                # If the conversation is much longer, kick off a background summarization
+                # task that will persist a single-line summary into Redis for audit/compact
+                # storage. We do this asynchronously so we don't block the request path.
+                SUMMARY_TRIGGER = 40
+                if len(request.messages) > SUMMARY_TRIGGER:
+                    # Build a short heuristic summary from recent user messages
+                    try:
+                        snippets = []
+                        # collect last few user/assistant message snippets
+                        for m in request.messages[-12:]:
+                            try:
+                                if isinstance(m, dict):
+                                    role = m.get("role") or m.get("type")
+                                    content = m.get("content", "")
+                                else:
+                                    role = getattr(m, "role", None) or getattr(m, "type", None)
+                                    content = getattr(m, "content", "")
+                            except Exception:
+                                role = None
+                                content = ""
+
+                            if role and role == "user":
+                                # take a short prefix
+                                snippets.append(content.strip().replace("\n", " ")[:120])
+
+                        if not snippets:
+                            # fallback: take assistant snippets
+                            for m in request.messages[-12:]:
+                                try:
+                                    if isinstance(m, dict):
+                                        role = m.get("role") or m.get("type")
+                                        content = m.get("content", "")
+                                    else:
+                                        role = getattr(m, "role", None) or getattr(m, "type", None)
+                                        content = getattr(m, "content", "")
+                                except Exception:
+                                    role = None
+                                    content = ""
+                                if role and role == "assistant":
+                                    snippets.append(content.strip().replace("\n", " ")[:120])
+
+                        summary_line = " | ".join(snippets[:6])
+                        if not summary_line:
+                            summary_line = "(no significant recent user messages)"
+
+                        # Best-effort: extract thread id for namespacing
+                        thread_id = None
+                        try:
+                            cfg = getattr(request, "runtime", None)
+                            if cfg is not None:
+                                thread_cfg = getattr(cfg, "configurable", None)
+                                if isinstance(thread_cfg, dict):
+                                    thread_id = thread_cfg.get("thread_id")
+                        except Exception:
+                            thread_id = None
+
+                        # Persist summary in Redis in background
+                        try:
+                            asyncio.create_task(self._persist_summary(thread_id or "unknown", summary_line))
+                        except Exception:
+                            LOGGER.debug("Could not schedule summary persistence task for thread=%s", thread_id)
+                    except Exception:
+                        LOGGER.exception("Error while preparing summary snippet")
             
             return base
         
         # Create the agent with modern v1 API (already compiled with checkpointer)
-        # Note: dynamic_prompt middleware goes in middleware=[], not system_prompt=
+        # Note: Middleware execution order:
+        # 1. context_aware_prompt (before model) - Inject user context
+        # 2. capture_absence_details (wrap tool call) - Capture tool arguments  
+        # 3. replace_tool_response_with_template (after model) - Replace with template
         self.agent = create_agent(
             model=self.model,
             tools=self.tools,
-            middleware=[context_aware_prompt],  # Dynamic prompt as middleware
+            middleware=[
+                context_aware_prompt,  # Inject context before model call
+                capture_absence_details,  # Capture tool arguments from report_absence
+                replace_tool_response_with_template,  # Replace response with template after tool execution
+            ],
             context_schema=AgentContext,
             checkpointer=self._checkpointer,  # Pass checkpointer to create_agent
         )
@@ -208,6 +412,7 @@ class LangChainTelegramAgent:
         session_id: str,
         user_context: Dict[str, Any],
         message: str,
+        is_confirmation: bool = False,
     ) -> Dict[str, Any]:
         """Run the agent with a user message.
         
@@ -215,9 +420,11 @@ class LangChainTelegramAgent:
             session_id: Unique conversation identifier (thread_id)
             user_context: User-specific context (date, role, player IDs, etc.)
             message: User message text
+            is_confirmation: Whether the message is a confirmation for a pending tool
             
         Returns:
-            Agent response with 'messages' key containing conversation
+            Agent response with 'messages' key containing conversation, and an
+            optional 'requires_confirmation' key if a tool needs user approval.
         """
         # Convert user_context dict to AgentContext dataclass
         context = AgentContext(
@@ -226,6 +433,7 @@ class LangChainTelegramAgent:
             telegram_id=user_context.get("telegram_id", 0),
             role=user_context.get("role"),
             player_ids=user_context.get("player_ids"),
+            player_names=user_context.get("player_names"),  # New field for player name to ID mapping
             odoo_partner_id=user_context.get("odoo_partner_id"),
             odoo_user_id=user_context.get("odoo_user_id"),
         )
@@ -239,28 +447,47 @@ class LangChainTelegramAgent:
             await self._initialize_agent()
             assert self.agent is not None, "Agent initialization failed"
             
-            # Invoke agent with message and context (agent is already compiled with checkpointer)
-            result = await self.agent.ainvoke(
-                {
-                    "messages": [
-                        {"role": "user", "content": message}
-                    ]
-                },
-                config={
-                    "configurable": {
-                        "thread_id": session_id,
-                    },
-                    "recursion_limit": self.max_iterations,
-                },
-                context=context,
-            )
+            # Prepare agent invocation
+            config = {
+                "configurable": {"thread_id": session_id},
+                "recursion_limit": self.max_iterations,
+            }
+            
+            # If this is a confirmation, we don't need to add the user's message again
+            payload = {"messages": []} if is_confirmation else {"messages": [{"role": "user", "content": message}]}
+
+            # Stream agent steps to intercept tool calls
+            async for chunk in self.agent.astream(payload, config=config, context=context):
+                # Look for the 'agent' step which contains tool calls
+                if "agent" in chunk:
+                    agent_step = chunk["agent"]
+                    if agent_step and agent_step.tool_calls:
+                        for tool_call in agent_step.tool_calls:
+                            tool_name = tool_call.get("name")
+                            tool = next((t for t in self.tools if t.name == tool_name), None)
+                            
+                            # Check if the tool requires confirmation
+                            if tool and getattr(tool, "requires_confirmation", False):
+                                LOGGER.info(
+                                    "Tool '%s' requires confirmation. Pausing execution for session %s.",
+                                    tool_name, session_id
+                                )
+                                # Return a special response to the caller indicating confirmation is needed
+                                return {
+                                    "messages": chunk["agent"].messages,
+                                    "requires_confirmation": True,
+                                    "confirmation_prompt": f"Потвърждавате ли извършването на това действие: '{tool.description}'?",
+                                }
+            
+            # If no tool required confirmation, get the final state
+            final_state = await self.agent.aget_state(config)
             
             LOGGER.debug(
                 "Agent invocation complete for session=%s, message_count=%d",
-                session_id, len(result.get("messages", []))
+                session_id, len(final_state.values.get("messages", []))
             )
             
-            return result
+            return final_state.values
             
         except Exception as e:
             # Check if this is the corrupted checkpoint error
@@ -274,23 +501,13 @@ class LangChainTelegramAgent:
                 await self.aclear_history(session_id)
                 
                 # Retry the invocation with fresh history
-                result = await self.agent.ainvoke(
-                    {
-                        "messages": [
-                            {"role": "user", "content": message}
-                        ]
-                    },
-                    config={
-                        "configurable": {
-                            "thread_id": session_id,
-                        },
-                        "recursion_limit": self.max_iterations,
-                    },
-                    context=context,
+                # This is a simplified retry; a more robust implementation might use a different strategy
+                return await self.arun(
+                    session_id=session_id,
+                    user_context=user_context,
+                    message=message,
+                    is_confirmation=is_confirmation,
                 )
-                
-                LOGGER.info("Successfully recovered from corrupted checkpoint for session=%s", session_id)
-                return result
             
             # Re-raise other errors
             raise
@@ -327,6 +544,30 @@ class LangChainTelegramAgent:
                 LOGGER.info("Cleared %d checkpoint keys for session=%s", len(keys), session_id)
         finally:
             await redis_client.close()
+
+    async def _persist_summary(self, session_id: str, summary: str) -> None:
+        """Persist a one-line summary for a session into Redis.
+
+        This is a best-effort audit/compact storage to avoid keeping large
+        conversational context in the live model prompt. We store the summary
+        under `checkpoint_summary:{session_id}` with the configured TTL.
+        """
+        try:
+            import redis.asyncio as aioredis
+
+            redis_client = aioredis.from_url(self.redis_url, decode_responses=True)
+            key = f"checkpoint_summary:{session_id}"
+            await redis_client.set(key, summary)
+            if getattr(self, "session_ttl", None):
+                try:
+                    await redis_client.expire(key, int(self.session_ttl))
+                except Exception:
+                    # ignore expire errors
+                    pass
+            await redis_client.close()
+            LOGGER.info("Persisted summary for session=%s (key=%s)", session_id, key)
+        except Exception as e:
+            LOGGER.warning("Failed to persist summary for session=%s: %s", session_id, e)
 
     async def cleanup(self) -> None:
         """Cleanup resources (close Redis connections)."""

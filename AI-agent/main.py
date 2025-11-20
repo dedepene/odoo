@@ -190,8 +190,9 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-def user_context(user: TelegramUser) -> Dict[str, Any]:
-    return {
+async def user_context(user: TelegramUser) -> Dict[str, Any]:
+    """Build user context including player names mapped to IDs."""
+    context = {
         "current_date": datetime.now().strftime("%Y-%m-%d"),
         "current_datetime": datetime.now().isoformat(),
         "telegram_id": user.telegram_id,
@@ -202,6 +203,37 @@ def user_context(user: TelegramUser) -> Dict[str, Any]:
         "username": user.username,
         "phone": user.phone,
     }
+    
+    # Fetch player names from MCP server to provide clear context to the agent
+    if user.player_ids:
+        try:
+            players_data = await mcp_client.call_tool(
+                "get_record",
+                {
+                    "model": "academy.player",
+                    "ids": user.player_ids,
+                    "fields": ["id", "name"],
+                },
+            )
+            
+            # Parse the response and build player_names mapping
+            player_names = {}
+            if isinstance(players_data, str):
+                import json
+                players_data = json.loads(players_data)
+            
+            if isinstance(players_data, dict) and "records" in players_data:
+                for record in players_data["records"]:
+                    if "id" in record and "name" in record:
+                        player_names[record["name"]] = record["id"]
+            
+            if player_names:
+                context["player_names"] = player_names
+                LOGGER.debug("Loaded player names for user %s: %s", user.telegram_id, player_names)
+        except Exception as exc:
+            LOGGER.warning("Failed to fetch player names for user %s: %s", user.telegram_id, exc)
+    
+    return context
 
 
 async def fetch_user(session: AsyncSession, telegram_id: int) -> Optional[TelegramUser]:
@@ -370,9 +402,10 @@ async def chat_endpoint(
     if not user or not user.verified_at:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not verified")
     session_id = f"telegram:{payload.telegram_id}"
+    ctx = await user_context(user)
     agent_result = await agent.arun(
         session_id=session_id,
-        user_context=user_context(user),
+        user_context=ctx,
         message=payload.message,
     )
     # LangChain v1 create_agent returns messages in the 'messages' key
@@ -428,9 +461,10 @@ async def telegram_webhook(
         LOGGER.warning("User %s exists but not verified (verified_at is None)", telegram_id)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not verified")
     session_id = f"telegram:{telegram_id}"
+    ctx = await user_context(user)
     agent_result = await agent.arun(
         session_id=session_id,
-        user_context=user_context(user),
+        user_context=ctx,
         message=text,
     )
     # LangChain v1 create_agent returns messages in the 'messages' key
