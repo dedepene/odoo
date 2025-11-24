@@ -19,10 +19,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional, TYPE_CHECKING
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import dynamic_prompt, ModelRequest, after_model, wrap_tool_call
+from langchain.agents.middleware import dynamic_prompt, ModelRequest, after_model
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.redis.aio import AsyncRedisSaver
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
 
 from mcp_tools import MCPTool
 
@@ -81,7 +81,7 @@ class LangChainTelegramAgent:
         self.session_ttl = session_ttl
         self.model_name = model
         self.max_iterations = max_iterations
-        
+        # Default system prompt if none provided at initialization
         default_system_prompt = """You are a helpful assistant for parents at a tennis academy.
 
 Your capabilities:
@@ -150,30 +150,6 @@ Always use current date from context. Be concise."""
                 LOGGER.error("Failed to initialize Redis checkpointer: %s", e, exc_info=True)
                 raise
         
-        # Store last report_absence call details for after_model to use
-        last_absence_details = {"player_name": None, "date": None, "confirm_all": False}
-        
-        # Middleware to capture tool call arguments from report_absence
-        @wrap_tool_call
-        async def capture_absence_details(request, handler):
-            """Capture player_name, date, and confirm_all from report_absence tool calls."""
-            tool_call = request.tool_call
-            tool_name = tool_call.get("name")
-            
-            # Capture details if this is report_absence
-            if tool_name == "report_absence":
-                args = tool_call.get("args", {})
-                last_absence_details["player_name"] = args.get("player_name")
-                last_absence_details["date"] = args.get("date")
-                last_absence_details["confirm_all"] = bool(args.get("confirm_all"))
-                LOGGER.info(
-                    f"Captured report_absence details: player_name={last_absence_details['player_name']}, "
-                    f"date={last_absence_details['date']}, confirm_all={last_absence_details['confirm_all']}"
-                )
-            
-            # Execute the tool normally
-            return await handler(request)
-        
         # Middleware to replace AI response with template after successful tool execution
         @after_model
         def replace_tool_response_with_template(state, runtime):
@@ -182,7 +158,6 @@ Always use current date from context. Be concise."""
             This ensures the agent cannot offer additional services or ask follow-up questions.
             We simply confirm the action and ask if the user needs anything else.
             """
-            from langgraph.runtime import Runtime
             
             # Get messages from state
             messages = state.get("messages", [])
@@ -200,54 +175,110 @@ Always use current date from context. Be concise."""
             if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
                 return None
             
-            # Look for the most recent ToolMessage to check if report_absence was called
-            recent_tool_message = None
-            for msg in reversed(messages[-5:]):
-                if isinstance(msg, ToolMessage):
-                    recent_tool_message = msg
+            # Look for ALL ToolMessages in the current turn
+            # We iterate backwards from the message before the current one.
+            # If we encounter a HumanMessage before finding a ToolMessage, it means
+            # the tool execution belongs to a previous turn and is stale.
+            tool_messages = []
+            for msg in reversed(messages[:-1]):
+                if isinstance(msg, HumanMessage):
+                    # Found user input before tool - tool is stale
                     break
+                if isinstance(msg, ToolMessage):
+                    tool_messages.append(msg)
             
-            if not recent_tool_message:
+            if not tool_messages:
                 return None
             
-            # Check if the tool was report_absence
-            tool_name = getattr(recent_tool_message, 'name', None)
-            if tool_name != 'report_absence':
+            # Check if ANY of the tools was report_absence
+            report_absence_msgs = [m for m in tool_messages if getattr(m, 'name', None) == 'report_absence']
+            
+            if not report_absence_msgs:
                 return None
             
-            # Check if the tool message is asking for confirmation (contains question mark)
-            # If so, don't replace - let the agent ask the user
-            tool_content = getattr(recent_tool_message, 'content', '')
-            if '?' in tool_content or 'Искате ли' in tool_content:
-                LOGGER.info("Tool is asking for confirmation - preserving agent's question")
-                return None
+            # Check for errors or clarification requests in ANY of the messages
+            for msg in report_absence_msgs:
+                content = str(getattr(msg, 'content', ''))
+                if '[CLARIFICATION_NEEDED]' in content:
+                    LOGGER.info("Tool is asking for confirmation - preserving agent's question")
+                    return None
+                if '❌' in content or 'Error' in content or 'ГРЕШКА' in content:
+                    LOGGER.info("Tool reported an error - preserving agent's response")
+                    return None
+                if 'Няма тренировки' in content:
+                    LOGGER.info("Tool reported no sessions - preserving agent's response")
+                    return None
             
-            # Get player_name, date, and confirm_all from captured details
-            player_name = last_absence_details.get("player_name")
-            date = last_absence_details.get("date")
-            confirm_all = last_absence_details.get("confirm_all")
+            # Collect details from all successful report_absence calls
+            details = []
+            import re
+            
+            for tool_msg in report_absence_msgs:
+                tool_call_id = getattr(tool_msg, 'tool_call_id', None)
+                tool_content = str(getattr(tool_msg, 'content', ''))
+                
+                if tool_call_id:
+                    # Find the AIMessage that triggered this tool call
+                    for msg in reversed(messages):
+                        if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls'):
+                            for tool_call in msg.tool_calls:
+                                if tool_call.get('id') == tool_call_id:
+                                    args = tool_call.get('args', {})
+                                    player_name = args.get('player_name')
+                                    
+                                    # Fallback: Extract player name from tool output if missing in args
+                                    if not player_name:
+                                        # Pattern 1: Multiple sessions - "... за всички ... за {Name}."
+                                        match = re.search(r"за всички .+? за (.+?)\.", tool_content)
+                                        if match:
+                                            player_name = match.group(1)
+                                        else:
+                                            # Pattern 2: Single session - "... отсъствието на {Name} на/за ..."
+                                            match = re.search(r"Отбелязах отсъствието на (.+?) (?:на|за)", tool_content)
+                                            if match:
+                                                player_name = match.group(1)
+
+                                    details.append({
+                                        'player_name': player_name,
+                                        'date': args.get('date'),
+                                        'confirm_all': bool(args.get('confirm_all')),
+                                        'session_id': args.get('session_id')
+                                    })
+                                    break
+                            # Optimization: if we found the call for this tool_msg, we could break inner loop
+                            # but we need to be careful if multiple calls are in same AIMessage
             
             # Build the template response
-            if player_name and date:
-                if confirm_all:
-                    # Multiple sessions confirmed
-                    template_response = f"Разбрано. Регистрирах отсъствие за всички сесии на {date} за {player_name}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
-                else:
-                    # Single session
-                    template_response = f"Разбрано. Регистрирах отсъствие за {player_name} на {date}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+            if not details:
+                 template_response = "Разбрано. Отсъствието е регистрирано. Треньорите са уведомени. Мога ли да помогна с още нещо?"
             else:
-                # Fallback if we couldn't capture details
-                template_response = "Разбрано. Отсъствието е регистрирано. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                # Summarize details
+                players = sorted(list(set(d['player_name'] for d in details if d['player_name'])))
+                dates = sorted(list(set(d['date'] for d in details if d['date'])))
+                
+                if len(players) > 1:
+                    players_str = " и ".join([", ".join(players[:-1]), players[-1]] if len(players) > 2 else players)
+                    if len(dates) == 1:
+                        template_response = f"Разбрано. Регистрирах отсъствие за {players_str} на {dates[0]}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                    else:
+                        template_response = f"Разбрано. Регистрирах отсъствие за {players_str}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                elif len(players) == 1:
+                    player = players[0]
+                    # Find the detail for this player (first one)
+                    d = next(d for d in details if d['player_name'] == player)
+                    if d['confirm_all']:
+                         template_response = f"Разбрано. Регистрирах отсъствие за всички сесии на {d['date']} за {player}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                    elif d['session_id']:
+                         template_response = f"Разбрано. Регистрирах отсъствие за {player} за тренировка {d['session_id']}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                    else:
+                         template_response = f"Разбрано. Регистрирах отсъствие за {player} на {d['date']}. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+                else:
+                    template_response = "Разбрано. Отсъствието е регистрирано. Треньорите са уведомени. Мога ли да помогна с още нещо?"
             
             LOGGER.info(
                 f"Replaced AI response with template after report_absence. "
-                f"Player: {player_name}, Date: {date}, Confirm_all: {confirm_all}, Template: {template_response}"
+                f"Details: {details}, Template: {template_response}"
             )
-            
-            # Clear the captured details for next invocation
-            last_absence_details["player_name"] = None
-            last_absence_details["date"] = None
-            last_absence_details["confirm_all"] = False
             
             # Create a new AIMessage with template content
             new_message = AIMessage(
@@ -263,7 +294,7 @@ Always use current date from context. Be concise."""
         @dynamic_prompt
         def context_aware_prompt(request: ModelRequest) -> str:
             """Inject user context into system prompt."""
-            base = self.system_prompt
+            base = self.system_prompt or ""
             
             # Add context from runtime if available
             if hasattr(request.runtime, 'context') and request.runtime.context:
@@ -320,6 +351,10 @@ Always use current date from context. Be concise."""
                     )
                     # Keep only the last MAX_MESSAGES entries
                     request.messages = request.messages[-MAX_MESSAGES:]
+                    
+                    # Ensure we don't start with a ToolMessage (orphaned from its AIMessage)
+                    while request.messages and isinstance(request.messages[0], ToolMessage):
+                        request.messages.pop(0)
 
                 # If the conversation is much longer, kick off a background summarization
                 # task that will persist a single-line summary into Redis for audit/compact
@@ -390,14 +425,12 @@ Always use current date from context. Be concise."""
         # Create the agent with modern v1 API (already compiled with checkpointer)
         # Note: Middleware execution order:
         # 1. context_aware_prompt (before model) - Inject user context
-        # 2. capture_absence_details (wrap tool call) - Capture tool arguments  
-        # 3. replace_tool_response_with_template (after model) - Replace with template
+        # 2. replace_tool_response_with_template (after model) - Replace with template
         self.agent = create_agent(
             model=self.model,
             tools=self.tools,
             middleware=[
                 context_aware_prompt,  # Inject context before model call
-                capture_absence_details,  # Capture tool arguments from report_absence
                 replace_tool_response_with_template,  # Replace response with template after tool execution
             ],
             context_schema=AgentContext,

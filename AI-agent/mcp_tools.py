@@ -699,7 +699,7 @@ class ReportAbsenceTool(MCPTool):
             # Multiple sessions without confirmation - ask parent
             session_lines = [self._format_session_line(session) for session in sessions]
             return (
-                f"{player_label} има {len(sessions)} тренировки на {date_param}:\n"
+                f"[CLARIFICATION_NEEDED] {player_label} има {len(sessions)} тренировки на {date_param}:\n"
                 + "\n".join(session_lines)
                 + "\n\nИскате ли да отбележа отсъствие за всички сесии? Отговорете 'да' за всички, или посочете session_id за конкретна сесия."
             )
@@ -714,6 +714,102 @@ class GetInvoicesTool(MCPTool):
     description: str = "Use to retrieve outstanding invoices relevant to the user"
     tool_name: str = "academy.get_invoices"
     args_schema: Type[BaseModel] = GetInvoicesParams
+
+    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+        print(f"DEBUG: GetInvoicesTool._arun called with args={args} kwargs={kwargs}")
+        self._ensure_authorized()
+        context = self._user_context or {}
+        
+        print(f"DEBUG: Context keys: {list(context.keys())}")
+        print(f"DEBUG: Initial partner_id: {context.get('partner_id')}")
+        print(f"DEBUG: Player IDs: {context.get('player_ids')}")
+
+        # If partner_id is not provided, try to get it from context
+        if not kwargs.get("partner_id"):
+            partner_id = context.get("partner_id")
+            player_ids = context.get("player_ids") or []
+            
+            # ALWAYS try to resolve the billing contact (guardian) if players are linked
+            # In this academy, invoices are issued to the guardian, not the player.
+            if player_ids:
+                try:
+                    print(f"DEBUG: Attempting to resolve guardian for players: {player_ids}")
+                    players_payload = await self._call_tool_json(
+                        "search_records",
+                        {
+                            "model": "academy.player",
+                            "domain": [("id", "in", player_ids)],
+                            "fields": ["primary_guardian_id"],
+                            "limit": 1
+                        },
+                    )
+                    print(f"DEBUG: Guardian resolution payload: {players_payload}")
+                    
+                    records = []
+                    if isinstance(players_payload, dict):
+                        records = players_payload.get("records", [])
+                    elif isinstance(players_payload, list):
+                        records = players_payload
+
+                    if records:
+                        guardian = records[0].get("primary_guardian_id")
+                        # Many2one field returns [id, name] or False
+                        if isinstance(guardian, list) and len(guardian) > 0:
+                            guardian_id = guardian[0]
+                            if guardian_id != partner_id:
+                                print(f"DEBUG: Resolved billing partner from players: {partner_id} -> {guardian_id}")
+                                partner_id = guardian_id
+                            else:
+                                print(f"DEBUG: Guardian ID {guardian_id} matches context partner_id")
+                        else:
+                            print(f"DEBUG: Primary guardian field is empty or invalid: {guardian}")
+                    else:
+                        print("DEBUG: No player records found for guardian resolution")
+                except Exception as e:
+                    print(f"DEBUG: Failed to resolve guardian from players: {e}")
+
+            if not partner_id:
+                # If we are here, it means the user didn't provide partner_id and we couldn't find it in context
+                # This might happen if an admin calls the tool without partner_id
+                raise RuntimeError("Partner ID is required. Please specify a partner_id.")
+            kwargs["partner_id"] = partner_id
+            
+        print(f"DEBUG: Calling academy.get_invoices with partner_id: {kwargs.get('partner_id')}")
+        result_json = await super()._arun(*args, **kwargs)
+        print(f"DEBUG: academy.get_invoices result: {result_json}")
+        
+        try:
+            data = json.loads(result_json)
+            total_due = data.get("total_due", 0.0)
+            currency = data.get("currency", "")
+            invoices = data.get("invoices", [])
+            
+            # If requesting unpaid invoices (default) and total_due is 0, return "No obligations"
+            # But if requesting 'paid' or 'all', we should list them even if total_due is 0
+            status_arg = kwargs.get("status")
+            if (not status_arg or status_arg == "unpaid") and total_due <= 0 and not invoices:
+                return "Нямате задължения за момента."
+            
+            if not invoices:
+                return "Няма намерени фактури."
+
+            msg = f"Общо дължима сума: {total_due:.2f} {currency}.\n\nДетайли по фактури:\n"
+            for inv in invoices:
+                due_date = inv.get("due_date") or "N/A"
+                amount = inv.get("residual", 0.0)
+                total_amount = inv.get("amount", 0.0)
+                number = inv.get("number", "Unknown")
+                status_label = inv.get("status", "")
+                
+                # Show residual for unpaid, total for paid
+                display_amount = amount if amount > 0 else total_amount
+                
+                msg += f"- Фактура {number}: {display_amount:.2f} {currency} ({status_label}), падеж: {due_date}\n"
+                
+            return msg
+        except Exception:
+            # If parsing fails, return original result
+            return result_json
 
 
 class GetContactInfoTool(MCPTool):

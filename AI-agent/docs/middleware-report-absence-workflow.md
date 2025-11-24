@@ -18,40 +18,11 @@ Rather than relying on system prompts (which are "super unreliable" as the user 
 
 ## Middleware Components
 
-### 1. Tool Argument Capture (`@wrap_tool_call`)
+### 1. Response Template Replacement (`@after_model`)
 
-**Purpose**: Capture arguments from `report_absence` tool calls before execution for later use in response templating.
+**Purpose**: Replace the LLM's verbose response with a controlled template after successful absence recording, supporting both single and multiple player scenarios.
 
-**Location**: `langchain_agent.py`, lines 154-171
-
-**Implementation**:
-```python
-@wrap_tool_call
-async def capture_absence_details(request, handler):
-    """Capture player_name, date, and confirm_all from report_absence tool calls."""
-    tool_call = request.tool_call
-    tool_name = tool_call.get("name")
-    
-    if tool_name == "report_absence":
-        args = tool_call.get("args", {})
-        last_absence_details["player_name"] = args.get("player_name")
-        last_absence_details["date"] = args.get("date")
-        last_absence_details["confirm_all"] = bool(args.get("confirm_all"))
-    
-    return await handler(request)
-```
-
-**Key Features**:
-- Async function (required for `@wrap_tool_call`)
-- Stores `player_name`, `date`, and `confirm_all` flag in shared dictionary
-- Non-invasive - always calls `handler(request)` to proceed with normal execution
-- Logs captured details for debugging
-
-### 2. Response Template Replacement (`@after_model`)
-
-**Purpose**: Replace the LLM's verbose response with a controlled template after successful absence recording.
-
-**Location**: `langchain_agent.py`, lines 173-257
+**Location**: `langchain_agent.py`
 
 **Implementation**:
 ```python
@@ -65,62 +36,93 @@ def replace_tool_response_with_template(state, runtime):
     if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
         return None  # Let tools execute first
     
-    # Find recent ToolMessage
-    recent_tool_message = None
-    for msg in reversed(messages[-5:]):
-        if isinstance(msg, ToolMessage):
-            recent_tool_message = msg
-            break
-    
-    # Verify it's report_absence
-    if recent_tool_message and getattr(recent_tool_message, 'name') == 'report_absence':
-        # Check for confirmation request
-        tool_content = getattr(recent_tool_message, 'content', '')
-        if '?' in tool_content or 'Искате ли' in tool_content:
+    # Find all report_absence tool messages in the current turn
+    report_absence_tools = []
+    # Iterate backwards to find the sequence of tool messages
+    for msg in reversed(messages[:-1]):
+        if isinstance(msg, HumanMessage):
+            break 
+        if isinstance(msg, ToolMessage) and msg.name == 'report_absence':
+            report_absence_tools.append(msg)
+            
+    if not report_absence_tools:
+        return None
+
+    # Check for confirmation requests or errors in ANY of the tool outputs
+    for tool_msg in report_absence_tools:
+        tool_content = str(tool_msg.content)
+        if '[CLARIFICATION_NEEDED]' in tool_content:
             return None  # Preserve agent's confirmation question
-        
-        # Build appropriate template
-        player_name = last_absence_details.get("player_name")
-        date = last_absence_details.get("date")
-        confirm_all = last_absence_details.get("confirm_all")
-        
-        if confirm_all:
-            template = f"Разбрано. Регистрирах отсъствие за всички сесии на {date} за {player_name}..."
-        else:
-            template = f"Разбрано. Регистрирах отсъствие за {player_name} на {date}..."
-        
-        return {"messages": [AIMessage(content=template)]}
+        if '❌' in tool_content or 'Error' in tool_content:
+            return None
+
+    # Aggregate details from all successful tool calls
+    processed_absences = []
     
-    return None
+    for tool_msg in report_absence_tools:
+        # Find the corresponding tool call in the AIMessage
+        # ... (logic to match tool_call_id and extract args) ...
+        
+        if player_name and (date or session_id):
+            processed_absences.append({
+                "player": player_name,
+                "date": date,
+                "session": session_id,
+                "all": confirm_all
+            })
+
+    # Build appropriate template based on number of absences processed
+    if not processed_absences:
+        return None
+        
+    if len(processed_absences) == 1:
+        # Single absence template
+        info = processed_absences[0]
+        if info["all"]:
+            template = f"Разбрано. Регистрирах отсъствие за всички сесии на {info['date']} за {info['player']}..."
+        elif info["session"]:
+            template = f"Разбрано. Регистрирах отсъствие за {info['player']} за тренировка {info['session']}..."
+        else:
+            template = f"Разбрано. Регистрирах отсъствие за {info['player']} на {info['date']}..."
+    else:
+        # Multiple absences template
+        details = []
+        for info in processed_absences:
+            if info['date']:
+                details.append(f"{info['player']} ({info['date']})")
+            # ...
+        template = f"Разбрано. Регистрирах отсъствията за: {', '.join(details)}..."
+
+    return {"messages": [AIMessage(content=template)]}
 ```
 
 **Critical Safeguards**:
 
-1. **Execution State Check** (Lines 196-199):
+1. **Execution State Check**:
    - Prevents middleware from triggering when AI plans to call a tool (before execution)
-   - Checks for `tool_calls` attribute on AIMessage
-   - Returns `None` to allow tool execution to proceed
 
-2. **Confirmation Detection** (Lines 218-224):
-   - Detects when tool is asking user for confirmation
-   - Checks for question marks (`?`) or Bulgarian phrase (`Искате ли`)
+2. **Explicit Confirmation Signal**:
+   - Detects when tool is asking user for confirmation using the `[CLARIFICATION_NEEDED]` marker
    - Preserves agent's question instead of replacing with template
 
-3. **Dynamic Template Selection** (Lines 226-240):
-   - Single session: "Регистрирах отсъствие за {player_name} на {date}"
-   - Multiple sessions: "Регистрирах отсъствие за всички сесии на {date} за {player_name}"
-   - Fallback template if details unavailable
+3. **Multi-Tool Aggregation**:
+   - Scans *all* tool messages in the current turn, not just the last one
+   - Allows handling requests like "Report absence for Stela and Dalia" in a single response
 
-### 3. Context Injection (`@dynamic_prompt`)
+4. **Stateless Argument Extraction**:
+   - Extracts arguments directly from the `AIMessage` history, eliminating the need for shared state variables
+
+### 2. Context Injection (`@dynamic_prompt`)
 
 **Purpose**: Inject user-specific context (current date, player names, role) into system prompt.
 
-**Location**: `langchain_agent.py`, lines 259-383
+**Location**: `langchain_agent.py`
 
 **Key Features**:
 - Adds current date, Telegram ID, user role to prompt
 - Maps player names to IDs for disambiguation
 - Truncates message history to prevent prompt bloat (MAX_MESSAGES = 12)
+- **Truncation Safety**: Ensures truncated history never starts with a `ToolMessage` to prevent API errors
 - Creates background summary tasks for long conversations (SUMMARY_TRIGGER = 40)
 
 ## System Prompt Enhancements
@@ -145,51 +147,61 @@ def replace_tool_response_with_template(state, runtime):
 
 1. **User**: "Стела ще отсъства на 24 ноември"
 2. **Agent**: Calls `report_absence(player_name="Стела Величкова", date="2025-11-24")` (no `session_id`)
-3. **Middleware (`@wrap_tool_call`)**: Captures `player_name`, `date`, `confirm_all=False`
-4. **Tool**: Detects 1 session, records absence immediately
-5. **Tool Response**: "✓ Отбелязах отсъствието на Стела Величкова..."
-6. **Middleware (`@after_model`)**: Detects successful execution (no `?` in response)
-7. **Template Applied**: "Разбрано. Регистрирах отсъствие за Стела Величкова на 2025-11-24. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+3. **Tool**: Detects 1 session, records absence immediately
+4. **Tool Response**: "✓ Отбелязах отсъствието на Стела Величкова..."
+5. **Middleware (`@after_model`)**: Detects successful execution (no `?` in response)
+6. **Template Applied**: "Разбрано. Регистрирах отсъствие за Стела Величкова на 2025-11-24. Треньорите са уведомени. Мога ли да помогна с още нещо?"
 
 ### Multiple Sessions Scenario
 
 1. **User**: "Далия ще отсъства утре"
 2. **Agent**: Calls `report_absence(player_name="Далия Величкова", date="2025-11-21")` (no `session_id`)
-3. **Middleware (`@wrap_tool_call`)**: Captures `player_name`, `date`, `confirm_all=False`
-4. **Tool**: Detects 2 sessions, returns:
+3. **Tool**: Detects 2 sessions, returns:
    ```
-   Далия Величкова има 2 тренировки на 2025-11-21:
+   [CLARIFICATION_NEEDED] Далия Величкова има 2 тренировки на 2025-11-21:
    - 12:00 – Physical Activities (Group) (session_id=1289)
    - 13:00 – Tennis Skills (Group) (session_id=1313)
    
    Искате ли да отбележа отсъствие за всички сесии?
    ```
-5. **Middleware (`@after_model`)**: Detects `?` in tool response → returns `None`
-6. **Agent**: Preserves tool's question (no template replacement)
-7. **User**: "да" (or "всички")
-8. **Agent**: Calls `report_absence(player_name="Далия Величкова", date="2025-11-21", confirm_all=True)`
-9. **Middleware (`@wrap_tool_call`)**: Captures `confirm_all=True`
-10. **Tool**: Records absence for both sessions (1289 and 1313)
-11. **Middleware (`@after_model`)**: Detects `confirm_all=True` → selects multiple session template
-12. **Template Applied**: "Разбрано. Регистрирах отсъствие за всички сесии на 2025-11-21 за Далия Величкова. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+4. **Middleware (`@after_model`)**: Detects `[CLARIFICATION_NEEDED]` in tool response → returns `None`
+5. **Agent**: Preserves tool's question (no template replacement)
+6. **User**: "да" (or "всички")
+7. **Agent**: Calls `report_absence(player_name="Далия Величкова", date="2025-11-21", confirm_all=True)`
+8. **Tool**: Records absence for both sessions (1289 and 1313)
+9. **Middleware (`@after_model`)**: Detects `confirm_all=True` → selects multiple session template
+10. **Template Applied**: "Разбрано. Регистрирах отсъствие за всички сесии на 2025-11-21 за Далия Величкова. Треньорите са уведомени. Мога ли да помогна с още нещо?"
+
+### Multiple Players Scenario (Parallel Tool Calls)
+
+1. **User**: "Стела и Далия ще отсъстват утре"
+2. **Agent**: Calls `report_absence` twice in parallel:
+   - `report_absence(player_name="Стела Величкова", date="2025-11-21")`
+   - `report_absence(player_name="Далия Величкова", date="2025-11-21")`
+3. **Tool**: Executes both calls.
+   - Call 1: Records absence for Stela.
+   - Call 2: Records absence for Dalia.
+4. **Middleware (`@after_model`)**: 
+   - Detects successful execution for *both* tools.
+   - Aggregates details: `[{player: Stela, date: ...}, {player: Dalia, date: ...}]`
+5. **Template Applied**: "Разбрано. Регистрирах отсъствията за: Стела Величкова (2025-11-21), Далия Величкова (2025-11-21). Треньорите са уведомени..."
 
 ## Middleware Execution Order
 
 ```
 1. context_aware_prompt (@dynamic_prompt)
    ↓ Injects user context before model call
+   ↓ *Sanitizes history to prevent orphaned ToolMessages*
    
-2. Model generates response
+2. Model generates response (potentially with tool_calls)
    ↓
    
-3. capture_absence_details (@wrap_tool_call)
-   ↓ Captures tool arguments before execution
-   
-4. Tools execute
+3. Tools execute (if applicable)
    ↓
    
-5. replace_tool_response_with_template (@after_model)
-   ↓ Replaces response with template after execution
+4. replace_tool_response_with_template (@after_model)
+   ↓ Inspects history for tool results
+   ↓ Replaces response with template if criteria met
 ```
 
 **Important Note**: `@after_model` runs after **every** model response, including when the model decides to call a tool (before execution). The execution state check is critical to distinguish between:
@@ -198,18 +210,17 @@ def replace_tool_response_with_template(state, runtime):
 
 ## State Management
 
-### Shared Dictionary Pattern
+### Stateless Argument Extraction
 
-```python
-last_absence_details = {"player_name": None, "date": None, "confirm_all": False}
-```
+**Old Approach**: Used a shared dictionary `last_absence_details` to store tool arguments via a `@wrap_tool_call` decorator. This was not thread-safe and caused race conditions.
 
-**Lifecycle**:
-1. **Capture**: Populated by `@wrap_tool_call` when tool is called
-2. **Use**: Read by `@after_model` for template population
-3. **Clear**: Reset to `None`/`False` after template replacement
+**New Approach**: The middleware is now **stateless**. It inspects the message history to find the `AIMessage` that triggered the `report_absence` tool call(s) and extracts the arguments (`player_name`, `date`, `confirm_all`, `session_id`) directly from the `tool_calls` payload.
 
-**Scope**: Closure variable within `_initialize_agent()` - shared between middleware functions but isolated per agent instance.
+**Benefits**:
+- **Thread-safe**: Can handle multiple concurrent users/agents.
+- **Robust**: No risk of stale state from previous interactions.
+- **Self-contained**: All necessary information is derived from the conversation history.
+- **Multi-Tool Support**: Can easily aggregate data from multiple parallel tool calls.
 
 ## Key Design Patterns
 
@@ -233,29 +244,19 @@ if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
     return None  # Don't replace - tools haven't executed yet
 ```
 
-### 3. Content-Based Confirmation Detection
+### 3. Explicit Confirmation Signal
 
-**Problem**: Need to distinguish between "confirmation request" and "success confirmation" responses.
+**Problem**: Need to reliably distinguish between "confirmation request" and "success confirmation" responses without relying on fragile string parsing.
 
-**Solution**: Heuristic-based detection using question marks and Bulgarian phrases:
+**Solution**: The tool prepends a `[CLARIFICATION_NEEDED]` marker when it needs user input. The middleware checks for this specific marker.
 ```python
-if '?' in tool_content or 'Искате ли' in tool_content:
+if '[CLARIFICATION_NEEDED]' in tool_content:
     return None  # Preserve agent's question
 ```
 
-**Alternative Considered**: Structured tool responses with explicit flags (rejected for simplicity).
+**Benefit**: Creates a robust contract between the Tool and Middleware. The Tool explicitly signals when it needs "Human in the Loop" intervention.
 
-### 4. Async Middleware Functions
 
-**Requirement**: `@wrap_tool_call` must be async to support async tool execution.
-
-**Implementation**:
-```python
-@wrap_tool_call
-async def capture_absence_details(request, handler):
-    # ...
-    return await handler(request)  # Must await
-```
 
 ## Debugging and Observability
 
@@ -267,14 +268,6 @@ All agent invocations are automatically traced to LangSmith when environment var
 - `LANGSMITH_PROJECT=<project-name>`
 
 ### Log Messages
-
-**Tool Argument Capture**:
-```python
-LOGGER.info(
-    f"Captured report_absence details: player_name={player_name}, "
-    f"date={date}, confirm_all={confirm_all}"
-)
-```
 
 **Confirmation Detection**:
 ```python
@@ -351,7 +344,8 @@ When debugging the "Далия ще отсъства утре" issue, LangSmith 
 3. **State checks are essential** - always verify execution phase before taking action
 4. **Heuristic detection works** - simple pattern matching is sufficient for confirmation detection
 5. **Logging is invaluable** - comprehensive logging enabled rapid debugging via LangSmith traces
-6. **Shared state is acceptable** - closure-scoped dictionaries provide clean state sharing between middleware functions
+6. **Statelessness is superior** - inspecting message history is more robust than capturing state in side-effects
+7. **History Sanitization is mandatory** - LLM APIs (like OpenAI) are strict about message order; truncated history must be validated to avoid orphaned `ToolMessage`s.
 
 ---
 
