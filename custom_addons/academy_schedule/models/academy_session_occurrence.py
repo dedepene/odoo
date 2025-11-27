@@ -16,7 +16,7 @@ class AcademySessionOccurrence(models.Model):
     
     _name = 'academy.session.occurrence'
     _description = 'Session Occurrence'
-    _order = 'start_datetime desc'
+    _order = 'start_datetime asc'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Session Name', compute='_compute_name', store=True)
