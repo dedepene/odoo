@@ -13,6 +13,8 @@ services:
     networks:
       - odoo-net
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     # Resource limits (adjust based on LXC container resources)
     deploy:
       resources:
