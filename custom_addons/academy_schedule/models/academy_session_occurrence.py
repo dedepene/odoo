@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError, UserError
+from odoo.fields import Command
 
 
 if TYPE_CHECKING:  # pragma: no cover - typing helpers only
@@ -71,6 +72,14 @@ class AcademySessionOccurrence(models.Model):
     # Resources
     court_ids = fields.Many2many('academy.court', string='Courts', required=True)
     coach_id = fields.Many2one('res.users', string='Coach')
+    calendar_event_id = fields.Many2one(
+        'calendar.event',
+        string='Coach Calendar Event',
+        copy=False,
+        readonly=True,
+        ondelete='set null',
+        index=True,
+    )
     
     # State management
     state = fields.Selection([
@@ -136,6 +145,7 @@ class AcademySessionOccurrence(models.Model):
     def create(self, vals_list):
         records = super().create(vals_list)
         records._sync_suspension_state()
+        records._sync_calendar_events()
         return records
 
     def write(self, vals):
@@ -145,7 +155,96 @@ class AcademySessionOccurrence(models.Model):
             or not vals.keys() & {'state', 'suspension_id', 'state_before_suspension'}
         ):
             self._sync_suspension_state()
+        if (
+            not self.env.context.get('skip_calendar_sync')
+            and self._should_sync_calendar_event(vals)
+        ):
+            self._sync_calendar_events()
         return res
+
+    def unlink(self):
+        events = self.mapped('calendar_event_id')
+        res = super().unlink()
+        if events:
+            events.sudo().unlink()
+        return res
+
+    # ------------------------------------------------------------------
+    # Calendar helpers
+    # ------------------------------------------------------------------
+
+    def _should_sync_calendar_event(self, vals):
+        """Return True when calendar event updates are required."""
+        if not vals:
+            return True
+        tracked = {
+            'calendar_event_id',
+            'coach_id',
+            'court_ids',
+            'date',
+            'end_datetime',
+            'name',
+            'notes',
+            'session_type',
+            'skill_group_id',
+            'start_datetime',
+            'state',
+        }
+        return bool(tracked & set(vals.keys()))
+
+    def _calendar_event_description(self):
+        """Assemble a helpful description for the coach calendar entry."""
+        self.ensure_one()
+        parts = []
+        if self.skill_group_id:
+            parts.append(f"Skill group: {self.skill_group_id.display_name}")
+        if self.session_type:
+            parts.append(f"Type: {dict(self._fields['session_type'].selection).get(self.session_type)}")
+        if self.court_ids:
+            courts = ', '.join(self.court_ids.mapped('name'))
+            parts.append(f"Courts: {courts}")
+        if self.notes:
+            parts.append(self.notes)
+        return '\n'.join(parts)
+
+    def _prepare_calendar_event_values(self, res_model_id):
+        """Build values dict for calendar.event create/write calls."""
+        self.ensure_one()
+        location = ', '.join(self.court_ids.mapped('name')) if self.court_ids else False
+        partner_ids = self.coach_id.partner_id.ids if self.coach_id and self.coach_id.partner_id else []
+        partner_commands = [(6, 0, partner_ids)] if partner_ids else []
+        return {
+            'name': self.name or 'Session',
+            'start': self.start_datetime,
+            'stop': self.end_datetime,
+            'user_id': self.coach_id.id,
+            'partner_ids': partner_commands,
+            'show_as': 'busy',
+            'privacy': 'confidential',
+            'location': location,
+            'description': self._calendar_event_description(),
+            'res_model_id': res_model_id,
+            'res_id': self.id,
+            'active': self.state != 'cancelled',
+        }
+
+    def _sync_calendar_events(self):
+        """Create or update the coach calendar event for each occurrence."""
+        CalendarEvent = self.env['calendar.event'].sudo()
+        res_model_id = self.env['ir.model']._get_id('academy.session.occurrence')
+        for occurrence in self:
+            if not occurrence.coach_id or not occurrence.start_datetime or not occurrence.end_datetime:
+                if occurrence.calendar_event_id:
+                    occurrence.calendar_event_id.sudo().unlink()
+                    occurrence.with_context(skip_calendar_sync=True).write({'calendar_event_id': False})
+                continue
+
+            values = occurrence._prepare_calendar_event_values(res_model_id)
+            if occurrence.calendar_event_id:
+                occurrence.calendar_event_id.sudo().write(values)
+            else:
+                new_event = CalendarEvent.create(values)
+                occurrence.with_context(skip_calendar_sync=True).write({'calendar_event_id': new_event.id})
 
     # ------------------------------------------------------------------
     # Suspension helpers

@@ -7,7 +7,7 @@ This document provides a comprehensive overview of the **academy_schedule** modu
 **Module Version:** 19.0.1.0.0  
 **Implementation Date:** October 2025  
 **Dependencies:** academy_core, calendar  
-**Status:** Complete and ready for installation
+**Status:** Complete and ready for installation (coach calendars now synchronize automatically with session occurrences)
 
 ---
 
@@ -95,6 +95,12 @@ These notes capture important implementation details added in the latest work (O
     - `_suspend_with` and `_lift_suspension` on occurrences perform the concrete write operations to set and restore state while avoiding recursive sync (via context `skip_suspension_sync`).
 
 These additions complete the suspension lifecycle: wizard creation → suspension record → optional mass-suspend of existing planned occurrences → future generation respects suspension windows → deactivation lifts future suspended occurrences.
+
+- Coach calendar integration (November 2025):
+    - Added a stored `calendar_event_id` Many2one on `academy.session.occurrence` pointing to `calendar.event`.
+    - New helper `_sync_calendar_events` mirrors create/write/unlink operations to the coach’s personal Odoo calendar, keeping the event name, timing, courts, notes, and attendees in sync.
+    - Helper scripts `scripts/inspect_calendar.py` and `scripts/resync_calendar.py` were added to inspect specific coaches and to backfill existing occurrences (the resync script commits changes and should be run via `type scripts\resync_calendar.py | python odoo-bin shell ...`).
+    - Module upgrades (`-u academy_schedule --stop-after-init`) must run on deployment to add the new column before executing the resync helper.
 
 ### 2.1 Courts (`academy.court`)
 
@@ -228,6 +234,7 @@ print(f"Generated {count} occurrences")
 - `player_ids` - Many2many for individual sessions
 - `court_ids` - Allocated courts
 - `coach_id` - Assigned coach
+- `calendar_event_id` - Link to the coach’s calendar event (auto-managed)
 - `state` - planned, suspended, cancelled, completed
 - `is_individual` - Boolean for ad-hoc sessions
 - `is_followup` - Boolean for chained sessions
@@ -245,6 +252,7 @@ print(f"Generated {count} occurrences")
 - Optional player double-booking prevention (configurable)
 - End datetime must be after start datetime
 - Calendar visibility scoped by role (see section 4)
+- Coach calendars stay in sync; clearing the coach removes the linked `calendar.event`, while updates to timing/courts/notes reflect on the event record.
 
 **Conflict Detection:**
 The model includes sophisticated conflict checking:
@@ -270,6 +278,19 @@ for player in occurrence.player_ids:
         ('end_datetime', '>', occurrence.start_datetime),
     ])
 ```
+
+**Coach calendar synchronization:**
+
+- `_should_sync_calendar_event` decides whether a write should touch the calendar based on the fields being changed and respects a `skip_calendar_sync` context flag used during internal writes.
+- `_prepare_calendar_event_values` composes the event payload (name, timing, court list in the location, description containing skill group/type/notes, attendees set to the coach partner, `show_as='busy'`, `privacy='confidential'`).
+- `_sync_calendar_events` handles three paths:
+    1. **Create:** when a session gains a coach, a new `calendar.event` is created via sudo and linked back to `calendar_event_id`.
+    2. **Update:** subsequent writes propagate to the event (`user_id`, start/stop, location, description, notes, cancellation state toggling `active`).
+    3. **Delete/disconnect:** removing the coach or deleting the session unlinks and deletes orphaned events to avoid clutter.
+- Deployment/backfill procedure:
+    1. Upgrade the module so the new column exists (`python odoo-bin -c odoo.conf -d odoo -u academy_schedule --stop-after-init`).
+    2. Run `type scripts\resync_calendar.py | python odoo-bin shell -c odoo.conf -d odoo` to create events for historical occurrences (script commits and may emit invite emails; disable mail if necessary).
+    3. Use `scripts\inspect_calendar.py` to audit a coach (filters by name/date range) and confirm `calendar_event_id` values.
 
 ---
 

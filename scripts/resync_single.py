@@ -1,0 +1,5 @@
+occ = env['academy.session.occurrence'].browse(1242)
+print('before', occ.calendar_event_id)
+occ._sync_calendar_events()
+occ.invalidate_recordset(['calendar_event_id'])
+print('after', occ.calendar_event_id)
